@@ -1,8 +1,9 @@
 #include "render/VkRenderer.h"
+#include <GLFW/glfw3.h>
 #include <cstdint>
-#include <cstdlib>
-#include <iostream>
+#include <vector>
 #include <vulkan/vulkan_core.h>
+#include "render/VkUtils.h"
 
 VkRenderer::VkRenderer(const Window* window){
     m_window = window;
@@ -15,12 +16,6 @@ VkRenderer::~VkRenderer(){
     vkDestroyInstance(m_instance, nullptr);
 }
 
-void VkRenderer::validateResult(const VkResult& result, const char* message){
-    if(result == VK_SUCCESS) return;
-    std::cout << message;
-    exit(1);
-}
-
 void VkRenderer::createInstance(){
     VkApplicationInfo appInfo {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -31,10 +26,13 @@ void VkRenderer::createInstance(){
         .apiVersion = VK_API_VERSION_1_4
     };
 
-    const char* validationLayers[] = {
+    std::vector<char const *> validationLayers = {
         "VK_LAYER_KHRONOS_validation"
     };
     bool enableValidation = true;
+
+    std::vector<char const *> requiredLayers;
+    if(enableValidation) requiredLayers.assign(validationLayers.begin(), validationLayers.end());
 
     uint32_t extensionCount = 0;
     auto extensions = m_window->getExtensions(extensionCount);
@@ -42,22 +40,17 @@ void VkRenderer::createInstance(){
     VkInstanceCreateInfo createInfo{
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pApplicationInfo = &appInfo,
-        .enabledLayerCount = 0,
+        .enabledLayerCount = static_cast<uint32_t>(requiredLayers.size()),
+        .ppEnabledLayerNames = requiredLayers.data(),
         .enabledExtensionCount = extensionCount,
         .ppEnabledExtensionNames = extensions,
-
-
     };
 
-    if(enableValidation){
-        createInfo.enabledLayerCount = 1;
-        createInfo.ppEnabledLayerNames = validationLayers;
-    }
-
     auto res = vkCreateInstance(&createInfo, nullptr, &m_instance);
-    validateResult(res, "VkInstance");
+    validateVkResult(res, "VkInstance");
 }
 
 void VkRenderer::createSurface(){
-    
+    auto res = glfwCreateWindowSurface(m_instance, m_window->getWindow(), nullptr, &m_surface);
+    validateVkResult(res, "VkSurface");
 }

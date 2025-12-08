@@ -10,8 +10,6 @@ public:
     ~VkRenderer();
 
 private:
-    void validateResult(const VkResult& result, const char* message);
-
     void createInstance();
     void createSurface();
 
