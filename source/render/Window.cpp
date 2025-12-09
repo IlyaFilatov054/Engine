@@ -28,3 +28,7 @@ const char** Window::getExtensions(uint32_t &count) const {
 GLFWwindow* Window::getWindow() const{
     return m_window;
 }
+
+void Window::getSize(int &width, int &height) const {
+    glfwGetFramebufferSize(m_window, &width, &height);
+}

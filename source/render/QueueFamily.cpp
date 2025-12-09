@@ -1,12 +1,10 @@
 #include "render/QueueFamily.h"
 #include <cstdint>
-#include "render/VkUtils.h"
 
 QueueFamily::QueueFamily(uint32_t index, const VkQueueFamilyProperties &properties, const VkPhysicalDevice& device, const VkSurfaceKHR &surface) 
     : m_index(index), m_properties(properties)
 {
-    auto res = vkGetPhysicalDeviceSurfaceSupportKHR(device, m_index, surface, &m_presentSupport);
-    validateVkResult(res, "vkGetPhysicalDeviceSurfaceSupportKHR");
+    vkGetPhysicalDeviceSurfaceSupportKHR(device, m_index, surface, &m_presentSupport);
 }
 
 uint32_t QueueFamily::index() const {

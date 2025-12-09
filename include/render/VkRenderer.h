@@ -3,6 +3,7 @@
 #include "render/Window.h"
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
+#include "render/VkContext.h"
 
 class VkRenderer{
 public:
@@ -10,10 +11,6 @@ public:
     ~VkRenderer();
 
 private:
-    void createInstance();
-    void createSurface();
-
-    VkInstance m_instance = VK_NULL_HANDLE;
-    VkSurfaceKHR m_surface = VK_NULL_HANDLE;
+    VkContext* m_context = nullptr;
     const Window* m_window = nullptr;
 };

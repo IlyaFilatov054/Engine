@@ -16,13 +16,14 @@ PhysicalDevice::PhysicalDevice(const VkPhysicalDevice& device, const VkInstance 
 
     uint32_t queueFamiliesCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamiliesCount, nullptr);
-    std::vector<VkQueueFamilyProperties> queueFamilies;
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamiliesCount);
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamiliesCount, queueFamilies.data());
     for(size_t i = 0; i < queueFamilies.size(); i++) m_queueFamilies.emplace_back(i, queueFamilies[i], device, surface);
 
     uint32_t extensionCount = 0;
     auto res = vkEnumerateDeviceExtensionProperties(m_device, nullptr, &extensionCount, nullptr);
     validateVkResult(res, "vkEnumerateDeviceExtensionProperties 1");
+    m_extensionProperties.resize(extensionCount);
     res = vkEnumerateDeviceExtensionProperties(m_device, nullptr, &extensionCount, m_extensionProperties.data());
     validateVkResult(res, "vkEnumerateDeviceExtensionProperties 1");
 }
