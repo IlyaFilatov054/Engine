@@ -4,18 +4,23 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 #include "render/Window.h"
+#include "render/VkContext.h"
 
 class Swapchain {
 public:
-    Swapchain(const VkPhysicalDevice device, const VkSurfaceKHR surface, const Window* window);
+    Swapchain(const VkContext* context);
     ~Swapchain();
 
 private:
+    const VkContext* m_context = nullptr;
     VkSurfaceCapabilitiesKHR m_capabilities;
     std::vector<VkSurfaceFormatKHR> m_formats;
     VkSurfaceFormatKHR m_selectedFormat;
     std::vector<VkPresentModeKHR> m_presentModes;
     VkPresentModeKHR m_selectedPresentMode;
     VkExtent2D m_swapchainExtent;
-    uint32_t m_imageCount;
+    std::vector<VkImage> m_images;
+    std::vector<VkImageView> m_imageViews;
+    VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
+
 };

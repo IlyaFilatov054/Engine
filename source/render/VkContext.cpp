@@ -1,5 +1,6 @@
 #include "render/VkContext.h"
 #include "render/VkUtils.h"
+#include "render/Window.h"
 #include <iostream>
 #include <vulkan/vulkan_core.h>
 
@@ -112,4 +113,8 @@ VkSurfaceKHR VkContext::surface() const {
 
 VkQueue VkContext::graphicsQueue() const {
     return m_graphicsQueue;
+}
+
+const Window* VkContext::window() const {
+    return m_window;
 }

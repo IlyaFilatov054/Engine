@@ -4,6 +4,7 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 #include "render/VkContext.h"
+#include "render/Swapchain.h"
 
 class VkRenderer{
 public:
@@ -12,5 +13,6 @@ public:
 
 private:
     VkContext* m_context = nullptr;
+    Swapchain* m_swapchain = nullptr;
     const Window* m_window = nullptr;
 };

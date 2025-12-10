@@ -13,6 +13,7 @@ public:
     VkPhysicalDevice physicalDevice() const;
     VkSurfaceKHR surface() const;
     VkQueue graphicsQueue() const;
+    const Window* window() const;
 
 private:
     VkInstance m_instance = VK_NULL_HANDLE;
