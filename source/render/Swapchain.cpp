@@ -95,7 +95,7 @@ Swapchain::Swapchain(const VkContext* context) {
         imageViewCreateInfo.subresourceRange.layerCount = 1;
 
         res = vkCreateImageView(m_context->device(), &imageViewCreateInfo, nullptr, &m_imageViews[i]);
-        validateVkResult(res, ("vkCreateImageView" + std::to_string(i)).data());
+        validateVkResult(res, ("vkCreateImageView " + std::to_string(i)).data());
     }
 }
 

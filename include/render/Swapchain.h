@@ -1,9 +1,7 @@
 #pragma once
-#include <cstdint>
 #include <vector>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
-#include "render/Window.h"
 #include "render/VkContext.h"
 
 class Swapchain {
@@ -22,5 +20,4 @@ private:
     std::vector<VkImage> m_images;
     std::vector<VkImageView> m_imageViews;
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
-
 };
