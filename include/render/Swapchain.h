@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <vector>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
@@ -9,6 +10,8 @@ public:
     Swapchain(const VkContext* context);
     ~Swapchain();
 
+    const VkSurfaceFormatKHR& format() const;
+    const std::vector<VkImageView>& imageViews() const;    
 private:
     const VkContext* m_context = nullptr;
     VkSurfaceCapabilitiesKHR m_capabilities;
@@ -20,4 +23,12 @@ private:
     std::vector<VkImage> m_images;
     std::vector<VkImageView> m_imageViews;
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
+
+    void initCapabilities();
+    void initFormat();
+    void initPresentMode();
+    void initExtent();
+    void createSwapchain();
+    void createImages();
+    void createImageViews();
 };

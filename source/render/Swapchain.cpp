@@ -2,16 +2,46 @@
 #include <algorithm>
 #include <cstdint>
 #include <string>
+#include <vector>
 #include <vulkan/vulkan_core.h>
 #include "render/VkUtils.h"
 
 Swapchain::Swapchain(const VkContext* context) {
     m_context = context;
+
+    initCapabilities();
+    initFormat();
+    initPresentMode();
+    initExtent();
+    createSwapchain();
+    createImages();
+    createImageViews();
+}
+
+Swapchain::~Swapchain(){
+    vkDeviceWaitIdle(m_context->device());
+    for(auto view : m_imageViews){
+        vkDestroyImageView(m_context->device(), view, nullptr);
+    }
+    vkDestroySwapchainKHR(m_context->device(), m_swapchain, nullptr);
+}
+
+const VkSurfaceFormatKHR& Swapchain::format() const{
+    return  m_selectedFormat;
+}
+
+const std::vector<VkImageView>& Swapchain::imageViews() const {
+    return  m_imageViews;
+}
+
+void Swapchain::initCapabilities() {
     auto res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_context->physicalDevice(), m_context->surface(), &m_capabilities);
     validateVkResult(res, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
+}
 
+void Swapchain::initFormat() {
     uint32_t formatCount;
-    res = vkGetPhysicalDeviceSurfaceFormatsKHR(m_context->physicalDevice(), m_context->surface(), &formatCount, nullptr);
+    auto res = vkGetPhysicalDeviceSurfaceFormatsKHR(m_context->physicalDevice(), m_context->surface(), &formatCount, nullptr);
     validateVkResult(res, "vkGetPhysicalDeviceSurfaceFormatsKHR 1");
     m_formats.resize(formatCount);
     res = vkGetPhysicalDeviceSurfaceFormatsKHR(m_context->physicalDevice(), m_context->surface(), &formatCount, m_formats.data());
@@ -23,9 +53,11 @@ Swapchain::Swapchain(const VkContext* context) {
             break;
         }
     }
+}
 
+void Swapchain::initPresentMode() {
     uint32_t presentModeCount;
-    res = vkGetPhysicalDeviceSurfacePresentModesKHR(m_context->physicalDevice(), m_context->surface(), &presentModeCount, nullptr);
+    auto res = vkGetPhysicalDeviceSurfacePresentModesKHR(m_context->physicalDevice(), m_context->surface(), &presentModeCount, nullptr);
     validateVkResult(res, "vkGetPhysicalDeviceSurfacePresentModesKHR 1");
     m_presentModes.resize(presentModeCount);
     res = vkGetPhysicalDeviceSurfacePresentModesKHR(m_context->physicalDevice(), m_context->surface(), &presentModeCount, m_presentModes.data());
@@ -37,14 +69,18 @@ Swapchain::Swapchain(const VkContext* context) {
             break;
         }
     }
+}
 
+void Swapchain::initExtent() {
     int w, h;
     m_context->window()->getSize(w, h);
     uint32_t width = static_cast<uint32_t>(w);
     uint32_t height = static_cast<uint32_t>(h);
     m_swapchainExtent.width = std::clamp(width, m_capabilities.minImageExtent.width, m_capabilities.maxImageExtent.width);
     m_swapchainExtent.height = std::clamp(height, m_capabilities.minImageExtent.height, m_capabilities.maxImageExtent.height);    
+}
 
+void Swapchain::createSwapchain() {
     uint32_t imageCount = m_capabilities.minImageCount + 1;
     if(m_capabilities.maxImageCount > 0 && imageCount > m_capabilities.maxImageCount) imageCount = m_capabilities.maxImageCount;
 
@@ -64,16 +100,21 @@ Swapchain::Swapchain(const VkContext* context) {
         .clipped = VK_TRUE,
         .oldSwapchain = VK_NULL_HANDLE
     };
-    res = vkCreateSwapchainKHR(m_context->device(), &createInfo, nullptr, &m_swapchain);
+    auto res = vkCreateSwapchainKHR(m_context->device(), &createInfo, nullptr, &m_swapchain);
     validateVkResult(res, "vkCreateSwapchainKHR");
+}
 
+void Swapchain::createImages() {
     uint32_t swapchainImageCount;
-    res = vkGetSwapchainImagesKHR(m_context->device(), m_swapchain, &swapchainImageCount, nullptr);
+    auto res = vkGetSwapchainImagesKHR(m_context->device(), m_swapchain, &swapchainImageCount, nullptr);
     validateVkResult(res, "vkGetSwapchainImagesKHR 1");
     m_images.resize(swapchainImageCount);
     res = vkGetSwapchainImagesKHR(m_context->device(), m_swapchain, &swapchainImageCount, m_images.data());
     validateVkResult(res, "vkGetSwapchainImagesKHR 2");
+}
 
+void Swapchain::createImageViews() {
+    uint32_t swapchainImageCount = m_images.size();
     m_imageViews.resize(swapchainImageCount);
     for(uint32_t i = 0; i < swapchainImageCount; i++){
         VkImageViewCreateInfo imageViewCreateInfo {
@@ -94,15 +135,7 @@ Swapchain::Swapchain(const VkContext* context) {
         imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
         imageViewCreateInfo.subresourceRange.layerCount = 1;
 
-        res = vkCreateImageView(m_context->device(), &imageViewCreateInfo, nullptr, &m_imageViews[i]);
+        auto res = vkCreateImageView(m_context->device(), &imageViewCreateInfo, nullptr, &m_imageViews[i]);
         validateVkResult(res, ("vkCreateImageView " + std::to_string(i)).data());
     }
-}
-
-Swapchain::~Swapchain(){
-    vkDeviceWaitIdle(m_context->device());
-    for(auto view : m_imageViews){
-        vkDestroyImageView(m_context->device(), view, nullptr);
-    }
-    vkDestroySwapchainKHR(m_context->device(), m_swapchain, nullptr);
 }
