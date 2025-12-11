@@ -16,6 +16,7 @@ private:
     std::vector<VkFramebuffer> m_framebuffers;
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
+    std::vector<VkShaderModule> m_shaders;
 
     void createRenderPass();
     void createFramebuffers();

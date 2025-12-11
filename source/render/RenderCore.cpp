@@ -14,6 +14,9 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
 }
 
 RenderCore::~RenderCore(){
+    for(const auto& s : m_shaders){
+        vkDestroyShaderModule(m_context->device(), s, nullptr);
+    }
     vkDestroyPipeline(m_context->device(), m_pipeline, nullptr);
     vkDestroyPipelineLayout(m_context->device(), m_pipelineLayout, nullptr);
     for(const auto& f : m_framebuffers){
@@ -96,6 +99,8 @@ VkShaderModule RenderCore::createShaderModule(const std::vector<char> code) {
     VkShaderModule shaderModule;
     auto res = vkCreateShaderModule(m_context->device(), &shaderInfo, nullptr, &shaderModule);
     validateVkResult(res, "vkCreateShaderModule");
+
+    m_shaders.push_back(shaderModule);
     return shaderModule;
 
     //TODO: destroy shader module in shader manager or something

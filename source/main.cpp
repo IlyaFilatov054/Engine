@@ -1,5 +1,6 @@
 #include "render/Window.h"
 #include "render/VkRenderer.h"
+#include <GLFW/glfw3.h>
 
 int main() {
     Window window;

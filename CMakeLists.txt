@@ -8,6 +8,10 @@ set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_GENERATOR "Ninja")
 
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_C_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+
 project(Engine VERSION 0.1 LANGUAGES CXX)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
