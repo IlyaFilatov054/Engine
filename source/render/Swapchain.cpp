@@ -34,6 +34,10 @@ const std::vector<VkImageView>& Swapchain::imageViews() const {
     return  m_imageViews;
 }
 
+const VkExtent2D& Swapchain::extent() const {
+    return  m_swapchainExtent;
+}
+
 void Swapchain::initCapabilities() {
     auto res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_context->physicalDevice(), m_context->surface(), &m_capabilities);
     validateVkResult(res, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
