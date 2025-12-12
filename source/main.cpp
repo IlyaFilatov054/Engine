@@ -7,6 +7,7 @@ int main() {
     VkRenderer renderer(&window);
     while (!window.shouldClose()) {
         window.pollEvents();
+        renderer.render();
     }
 
     return 0;

@@ -16,9 +16,13 @@ project(Engine VERSION 0.1 LANGUAGES CXX)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-file(GLOB_RECURSE SOURCES
-    ${PROJECT_SOURCE_DIR}/source/*.cpp
-)
+file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/source/*.cpp)
+
+file(GLOB SHADERS ${PROJECT_SOURCE_DIR}/shaders/*.spv)
+foreach(SHADER ${SHADERS})
+    file(COPY ${SHADER} DESTINATION ${CMAKE_BINARY_DIR}/shaders)
+endforeach(SHADER ${SHADERS})
+
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 

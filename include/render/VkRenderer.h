@@ -12,6 +12,7 @@ public:
     VkRenderer(const Window* window);
     ~VkRenderer();
 
+    void render() const;
 private:
     VkContext* m_context = nullptr;
     Swapchain* m_swapchain = nullptr;

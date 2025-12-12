@@ -12,7 +12,8 @@ public:
 
     const VkSurfaceFormatKHR& format() const;
     const std::vector<VkImageView>& imageViews() const;
-    const VkExtent2D& extent() const;    
+    const VkExtent2D& extent() const;
+    const VkSwapchainKHR& swapchain() const;    
 private:
     const VkContext* m_context = nullptr;
     VkSurfaceCapabilitiesKHR m_capabilities;

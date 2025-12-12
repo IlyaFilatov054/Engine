@@ -15,3 +15,7 @@ VkRenderer::~VkRenderer(){
     delete m_swapchain;
     delete m_context;
 }
+
+void VkRenderer::render() const {
+    m_core->drawFrame();
+}

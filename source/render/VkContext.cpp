@@ -97,6 +97,7 @@ void VkContext::createLogicalDevice() {
     validateVkResult(res, "vkCreateDevice");
 
     vkGetDeviceQueue(m_device, queues[0]->index(), 0, &m_graphicsQueue);
+    m_graphicsQueueIndex = queues[0]->index();
 }
 
 VkDevice VkContext::device() const {
@@ -113,6 +114,10 @@ VkSurfaceKHR VkContext::surface() const {
 
 VkQueue VkContext::graphicsQueue() const {
     return m_graphicsQueue;
+}
+
+uint32_t VkContext::graphicsQueueIndex() const {
+    return m_graphicsQueueIndex;
 }
 
 const Window* VkContext::window() const {

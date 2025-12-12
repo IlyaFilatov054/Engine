@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 #include "render/PhysicalDevices.h"
@@ -13,6 +14,7 @@ public:
     VkPhysicalDevice physicalDevice() const;
     VkSurfaceKHR surface() const;
     VkQueue graphicsQueue() const;
+    uint32_t graphicsQueueIndex() const;
     const Window* window() const;
 
 private:
@@ -21,6 +23,7 @@ private:
     PhysicalDevices* m_physicalDevices = nullptr;
     VkDevice m_device = VK_NULL_HANDLE;
     VkQueue m_graphicsQueue = VK_NULL_HANDLE;
+    uint32_t m_graphicsQueueIndex = 0;
     const Window* m_window = nullptr;
 
     void createInstance();

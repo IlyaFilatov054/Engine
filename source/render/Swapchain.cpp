@@ -38,6 +38,10 @@ const VkExtent2D& Swapchain::extent() const {
     return  m_swapchainExtent;
 }
 
+const VkSwapchainKHR& Swapchain::swapchain() const {
+    return  m_swapchain;
+}
+
 void Swapchain::initCapabilities() {
     auto res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_context->physicalDevice(), m_context->surface(), &m_capabilities);
     validateVkResult(res, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
