@@ -16,7 +16,7 @@ public:
     VkQueue graphicsQueue() const;
     uint32_t graphicsQueueIndex() const;
     const Window* window() const;
-
+    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags flags) const;
 private:
     VkInstance m_instance = VK_NULL_HANDLE;
     VkSurfaceKHR m_surface = VK_NULL_HANDLE;

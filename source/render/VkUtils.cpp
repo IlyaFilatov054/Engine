@@ -4,6 +4,7 @@
 
 void validateVkResult(const VkResult &result, const char *message){
     if(result == VK_SUCCESS) return;
+    std::cerr << result << '\n';
     vkRendererError(message);
 }
 

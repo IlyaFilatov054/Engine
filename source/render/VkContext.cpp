@@ -1,6 +1,7 @@
 #include "render/VkContext.h"
 #include "render/VkUtils.h"
 #include "render/Window.h"
+#include <cstdint>
 #include <iostream>
 #include <vulkan/vulkan_core.h>
 
@@ -61,7 +62,6 @@ void VkContext::createSurface(){
 void VkContext::initPysicalDevices() {
     m_physicalDevices = new PhysicalDevices(m_instance, m_surface);
     auto devices = m_physicalDevices->getDevices();
-    std::cout << devices.size() << '\n';
     for(size_t i = 0; i < devices.size(); i++) {
         if(!devices[i]->hasExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME)) continue;
         auto queues = devices[i]->getQueues(true, VK_QUEUE_GRAPHICS_BIT);
@@ -122,4 +122,16 @@ uint32_t VkContext::graphicsQueueIndex() const {
 
 const Window* VkContext::window() const {
     return m_window;
+}
+
+uint32_t VkContext::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags flags) const {
+    VkPhysicalDeviceMemoryProperties memoryProperties;
+    vkGetPhysicalDeviceMemoryProperties(m_physicalDevices->selected()->device(), &memoryProperties);
+    for(uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++){
+        if(!(typeFilter & (1 << i))) continue;
+        if((memoryProperties.memoryTypes[i].propertyFlags & flags) != flags) continue;
+        return  i;
+    }
+    vkRendererError("Failed to find suitable memory type!");
+    return 0;   
 }

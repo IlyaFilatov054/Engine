@@ -1,7 +1,9 @@
 #include "render/RenderCore.h"
-#include <algorithm>
 #include <cstdint>
+#include <vector>
 #include <vulkan/vulkan_core.h>
+#include "render/Buffer.h"
+#include "render/Vertex.h"
 #include "render/VkUtils.h"
 #include "core/Utils.h"
 
@@ -11,14 +13,23 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     
     createRenderPass();
     createFramebuffers();
+    createDescriptors();
     createPipeline();
     createCommandPool();
     createCommandBuffers();
-    recordCommandBuffers();
     initSync();
+    
+    buffer = new Buffer(verticies.size() * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_context);
+    buffer->setData(verticies.data());
+    recordCommandBuffers();
+
+    camera = new Camera(m_context, m_cameraDescriptorSet);
 }
 
 RenderCore::~RenderCore(){
+    vkFreeDescriptorSets(m_context->device(), m_descriptorPool, 1, &m_cameraDescriptorSet);
+    vkDestroyDescriptorPool(m_context->device(), m_descriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(m_context->device(), m_descriptorSetLayout, nullptr);
     for(uint32_t i = 0; i < m_syncObjects.size(); i++){
         vkDestroySemaphore(m_context->device(), m_syncObjects[i].imageAvailable, nullptr);
         vkDestroySemaphore(m_context->device(), m_syncObjects[i].renderFinished, nullptr);
@@ -188,12 +199,14 @@ void RenderCore::createPipeline() {
         }
     };
 
+    auto vertexBindingDescription = Vertex::bindingDescription();
+    auto vertexAttributeDesriptions = Vertex::attributeDescriptions();
     VkPipelineVertexInputStateCreateInfo vertexinput {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = 0,
-        .pVertexBindingDescriptions = nullptr,
-        .vertexAttributeDescriptionCount = 0,
-        .pVertexAttributeDescriptions = nullptr,
+        .vertexBindingDescriptionCount = 1,
+        .pVertexBindingDescriptions = &vertexBindingDescription,
+        .vertexAttributeDescriptionCount = vertexAttributeDesriptions.size(),
+        .pVertexAttributeDescriptions = vertexAttributeDesriptions.data(),
     };
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly {
@@ -259,7 +272,8 @@ void RenderCore::createPipeline() {
 
     VkPipelineLayoutCreateInfo pipelaneLayoutInfo {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 0,
+        .setLayoutCount = 1,
+        .pSetLayouts = &m_descriptorSetLayout,
         .pushConstantRangeCount = 0,
     };
 
@@ -326,6 +340,9 @@ void RenderCore::recordCommandBuffers() {
 
         vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
 
+        VkDeviceSize offsets[] = {0};
+        vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, &buffer->buffer(), offsets);
+
         vkCmdDraw(m_commandBuffers[i], 3, 1, 0, 0);
         
         vkCmdEndRenderPass(m_commandBuffers[i]);
@@ -352,4 +369,41 @@ void RenderCore::initSync() {
         vkCreateSemaphore(m_context->device(), &semaphoreCreateInfo, nullptr, &m_syncObjects[i].renderFinished);
         vkCreateFence(m_context->device(), &fenceInfo, nullptr, &m_syncObjects[i].gpuReady);
     }
+}
+
+void RenderCore::createDescriptors() {
+    VkDescriptorSetLayoutBinding layoutBinding {
+        .binding = 0,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
+    };
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .bindingCount = 1,
+        .pBindings = &layoutBinding
+    };
+    vkCreateDescriptorSetLayout(m_context->device(), &layoutInfo, nullptr, &m_descriptorSetLayout);
+
+    VkDescriptorPoolSize poolSize {
+        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = 1,
+    };
+
+    VkDescriptorPoolCreateInfo poolInfo {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .maxSets = 1,
+        .poolSizeCount = 1,
+        .pPoolSizes = &poolSize,
+    };
+    vkCreateDescriptorPool(m_context->device(), &poolInfo, nullptr, &m_descriptorPool);
+
+    VkDescriptorSetAllocateInfo setAllocInfo {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = m_descriptorPool,
+        .descriptorSetCount = 1,
+        .pSetLayouts = &m_descriptorSetLayout
+    };
+    vkAllocateDescriptorSets(m_context->device(), &setAllocInfo, &m_cameraDescriptorSet);
 }

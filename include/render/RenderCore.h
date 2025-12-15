@@ -1,10 +1,13 @@
 #pragma once
+#include "render/Camera.h"
 #include "render/VkContext.h"
 #include "render/Swapchain.h"
 #include <cstdint>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 #include "render/FrameSyncObject.h"
+#include "render/Buffer.h"
+#include "render/Camera.h"
 
 class RenderCore {
 public:
@@ -30,6 +33,17 @@ private:
     std::vector<FrameSyncObject> m_syncObjects;
     std::vector<FrameSyncObject*> m_attachedSyncObjects;
     uint32_t m_currentFrame = 0;
+    [[deprecated]] Buffer* buffer = nullptr; 
+    [[deprecated]] std::vector<Vertex> verticies {
+        Vertex{.position = {-0.7f, 0.7f, 0.0f}, .color = {1.0f, 0.0f, 0.0f, 1.0f}},
+        Vertex{.position = {0.0f, -0.7f, 0.0f}, .color = {0.0f, 1.0f, 0.0f, 1.0f}},
+        Vertex{.position = {0.7f, 0.7f, 0.0f}, .color = {0.0f, 0.0f, 1.0f, 1.0f}},
+    };
+    [[deprecated]] Camera* camera = nullptr;
+    
+    VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
+    VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
+    VkDescriptorSet m_cameraDescriptorSet = VK_NULL_HANDLE;
 
     void createRenderPass();
     void createFramebuffers();
@@ -38,5 +52,6 @@ private:
     void createCommandPool();
     void createCommandBuffers();
     void initSync();
-    [[deprecated("ВРЕМЕННО")]] void recordCommandBuffers();
+    [[deprecated]] void recordCommandBuffers();
+    void createDescriptors();
 };
