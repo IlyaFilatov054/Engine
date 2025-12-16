@@ -35,9 +35,9 @@ private:
     uint32_t m_currentFrame = 0;
     [[deprecated]] Buffer* buffer = nullptr; 
     [[deprecated]] std::vector<Vertex> verticies {
-        Vertex{.position = {-0.7f, 0.7f, 0.0f}, .color = {1.0f, 0.0f, 0.0f, 1.0f}},
-        Vertex{.position = {0.0f, -0.7f, 0.0f}, .color = {0.0f, 1.0f, 0.0f, 1.0f}},
-        Vertex{.position = {0.7f, 0.7f, 0.0f}, .color = {0.0f, 0.0f, 1.0f, 1.0f}},
+        Vertex{.position = {-0.7f, -0.7f, 0.0f}, .color = {1.0f, 0.0f, 0.0f, 1.0f}},
+        Vertex{.position = {0.0f, 0.7f, 0.0f}, .color = {0.0f, 1.0f, 0.0f, 1.0f}},
+        Vertex{.position = {0.7f, -0.7f, 0.0f}, .color = {0.0f, 0.0f, 1.0f, 1.0f}},
     };
     [[deprecated]] Camera* camera = nullptr;
     

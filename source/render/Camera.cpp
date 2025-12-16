@@ -1,6 +1,7 @@
 #include "render/Camera.h"
 #include <glm/fwd.hpp>
 #include <vulkan/vulkan_core.h>
+#include <glm/gtc/matrix_transform.hpp>
 
 Camera::Camera(const VkContext* context, const VkDescriptorSet descriptorSet)
  : m_context(context),
@@ -23,17 +24,16 @@ context) {
         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         .pBufferInfo = &bufferInfo,
     };
-    
-    m_write = write;
-    updateData();    
+    vkUpdateDescriptorSets(m_context->device(), 1, &write, 0, nullptr);    
 }
 
 Camera::~Camera() {
 
 }
 
-void Camera::updateData() {
+void Camera::update() {
+    m_view = glm::lookAt(position, target, up);
+    m_projection = glm::perspective(glm::radians(fov), aspect, near, far);
     glm::mat4 data[] = {m_view, m_projection};
-    m_buffer.setData(&data);
-    vkUpdateDescriptorSets(m_context->device(), 1, &m_write, 0, nullptr);
+    m_buffer.setData(data);
 }

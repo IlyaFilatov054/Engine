@@ -6,6 +6,7 @@
 #include "render/Vertex.h"
 #include "render/VkUtils.h"
 #include "core/Utils.h"
+#include <iostream>
 
 RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_context = context;
@@ -21,9 +22,10 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     
     buffer = new Buffer(verticies.size() * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_context);
     buffer->setData(verticies.data());
-    recordCommandBuffers();
-
     camera = new Camera(m_context, m_cameraDescriptorSet);
+    camera->position.z += 2.5f;
+
+    recordCommandBuffers();
 }
 
 RenderCore::~RenderCore(){
@@ -48,6 +50,9 @@ RenderCore::~RenderCore(){
 }
 
 void RenderCore::drawFrame() {
+    camera->position.x += 1.0f;
+    camera->update();
+    std::cout << camera->position.x << '\n';
     auto& currentSyncObject = m_syncObjects[m_currentFrame];
 
     vkWaitForFences(m_context->device(), 1, &currentSyncObject.gpuReady, VK_TRUE, UINT64_MAX);
@@ -217,9 +222,9 @@ void RenderCore::createPipeline() {
 
     VkViewport viewport {
         .x = 0.0f,
-        .y = 0.0f, 
+        .y = (float)m_swapchain->extent().height, 
         .width = (float)m_swapchain->extent().width,
-        .height = (float)m_swapchain->extent().height,
+        .height = -(float)m_swapchain->extent().height,
         .minDepth = 0.0f,
         .maxDepth = 1.0f,
     };
@@ -242,8 +247,8 @@ void RenderCore::createPipeline() {
         .depthClampEnable = VK_FALSE,
         .rasterizerDiscardEnable = VK_FALSE,
         .polygonMode = VK_POLYGON_MODE_FILL,
-        .cullMode = VK_CULL_MODE_NONE,
-        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+        .cullMode = VK_CULL_MODE_BACK_BIT,
+        .frontFace = VK_FRONT_FACE_CLOCKWISE,
         .depthBiasEnable  = VK_FALSE,
         .lineWidth = 1.0f,
     };
@@ -339,6 +344,8 @@ void RenderCore::recordCommandBuffers() {
         vkCmdBeginRenderPass(m_commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
         vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+        
+        vkCmdBindDescriptorSets(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_cameraDescriptorSet, 0, nullptr);
 
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, &buffer->buffer(), offsets);

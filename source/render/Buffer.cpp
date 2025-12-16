@@ -1,5 +1,5 @@
 #include "render/Buffer.h"
-#include "render/Vertex.h"
+#include "render/VkUtils.h"
 #include <cstdint>
 #include <cstring>
 #include <vulkan/vulkan_core.h>
@@ -35,7 +35,8 @@ void Buffer::createBuffer(VkBufferUsageFlags usageFlags) {
         .usage = usageFlags,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE
     };
-    vkCreateBuffer(m_context->device(), &bufferInfo, nullptr, &m_buffer);
+    auto res = vkCreateBuffer(m_context->device(), &bufferInfo, nullptr, &m_buffer);
+    validateVkResult(res, "vkCreateBuffer");
 }
 
 void Buffer::allocateMemory(VkMemoryPropertyFlags memoryFlags) {
@@ -47,8 +48,10 @@ void Buffer::allocateMemory(VkMemoryPropertyFlags memoryFlags) {
         .allocationSize = memoryRequirments.size,
         .memoryTypeIndex = m_context->findMemoryType(memoryRequirments.memoryTypeBits, memoryFlags),
     };
-    vkAllocateMemory(m_context->device(), &allocateInfo, nullptr, &m_memory);
-    vkBindBufferMemory(m_context->device(), m_buffer, m_memory, 0);
-
-    vkMapMemory(m_context->device(), m_memory, 0, m_size, 0, &m_mappedMemory);
+    auto res = vkAllocateMemory(m_context->device(), &allocateInfo, nullptr, &m_memory);
+    validateVkResult(res, "vkAllocateMemory");
+    res = vkBindBufferMemory(m_context->device(), m_buffer, m_memory, 0);
+    validateVkResult(res, "vkBindBufferMemory");
+    res = vkMapMemory(m_context->device(), m_memory, 0, m_size, 0, &m_mappedMemory);
+    validateVkResult(res, "vkMapMemory");
 }
