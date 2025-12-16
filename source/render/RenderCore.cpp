@@ -6,7 +6,6 @@
 #include "render/Vertex.h"
 #include "render/VkUtils.h"
 #include "core/Utils.h"
-#include <iostream>
 
 RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_context = context;
@@ -50,9 +49,7 @@ RenderCore::~RenderCore(){
 }
 
 void RenderCore::drawFrame() {
-    camera->position.x += 1.0f;
     camera->update();
-    std::cout << camera->position.x << '\n';
     auto& currentSyncObject = m_syncObjects[m_currentFrame];
 
     vkWaitForFences(m_context->device(), 1, &currentSyncObject.gpuReady, VK_TRUE, UINT64_MAX);
@@ -62,7 +59,7 @@ void RenderCore::drawFrame() {
     auto res = vkAcquireNextImageKHR(
         m_context->device(),
         m_swapchain->swapchain(),
-        1000000000ULL,
+        UINT64_MAX,
         currentSyncObject.imageAvailable,
         VK_NULL_HANDLE,
         &imageIndex);
@@ -76,7 +73,7 @@ void RenderCore::drawFrame() {
     }
     else validateVkResult(res, "vkAcquireNextImageKHR");
 
-    if(m_attachedSyncObjects[imageIndex]) vkWaitForFences(m_context->device(), 1, &m_attachedSyncObjects[imageIndex]->gpuReady, VK_TRUE, UINT64_MAX);
+    if(m_attachedSyncObjects[imageIndex] && m_attachedSyncObjects[imageIndex] != &currentSyncObject) vkWaitForFences(m_context->device(), 1, &m_attachedSyncObjects[imageIndex]->gpuReady, VK_TRUE, UINT64_MAX);
     m_attachedSyncObjects[imageIndex] = &currentSyncObject;
 
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
