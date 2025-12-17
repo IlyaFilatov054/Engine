@@ -2,7 +2,6 @@
 #include "render/VkUtils.h"
 #include "render/Window.h"
 #include <cstdint>
-#include <iostream>
 #include <vulkan/vulkan_core.h>
 
 VkContext::VkContext(const Window* window){
@@ -14,6 +13,7 @@ VkContext::VkContext(const Window* window){
 }
 
 VkContext::~VkContext(){
+    vkDeviceWaitIdle(m_device);
     vkDestroyDevice(m_device, nullptr);
     delete m_physicalDevices;
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);

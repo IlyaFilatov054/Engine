@@ -2,13 +2,12 @@
 #include "render/Camera.h"
 #include "render/VkContext.h"
 #include "render/Swapchain.h"
-#include <cstdint>
 #include <vector>
 #include <vulkan/vulkan_core.h>
-#include "render/FrameSyncObject.h"
 #include "render/StagedBuffer.h"
 #include "render/Camera.h"
 #include "render/Vertex.h"
+#include "render/RenderSynchronization.h"
 
 class RenderCore {
 public:
@@ -30,10 +29,8 @@ private:
     VkCommandPool m_commandPool = VK_NULL_HANDLE;
     std::vector<VkCommandBuffer> m_commandBuffers;
     
-    uint32_t m_maxFramesInFlight;
-    std::vector<FrameSyncObject> m_syncObjects;
-    std::vector<VkSemaphore> m_renderFinished;
-    uint32_t m_currentFrame = 0;
+    RenderSynchronization* m_synchronization = nullptr;
+
     [[deprecated]] StagedBuffer* m_buffer = nullptr; 
     [[deprecated]] std::vector<Vertex> m_verticies {
         Vertex{.position = {-0.7f, -0.7f, 0.0f}, .color = {1.0f, 0.0f, 0.0f, 1.0f}},
@@ -52,7 +49,6 @@ private:
     void createPipeline();
     void createCommandPool();
     void createCommandBuffers();
-    void initSync();
     void recordCommandBuffer(VkCommandBuffer buffer, const VkFramebuffer framebuffer);
     void createDescriptors();
 };
