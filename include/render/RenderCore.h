@@ -32,10 +32,10 @@ private:
     
     uint32_t m_maxFramesInFlight;
     std::vector<FrameSyncObject> m_syncObjects;
-    std::vector<FrameSyncObject*> m_attachedSyncObjects;
+    std::vector<VkSemaphore> m_renderFinished;
     uint32_t m_currentFrame = 0;
-    [[deprecated]] StagedBuffer* buffer = nullptr; 
-    [[deprecated]] std::vector<Vertex> verticies {
+    [[deprecated]] StagedBuffer* m_buffer = nullptr; 
+    [[deprecated]] std::vector<Vertex> m_verticies {
         Vertex{.position = {-0.7f, -0.7f, 0.0f}, .color = {1.0f, 0.0f, 0.0f, 1.0f}},
         Vertex{.position = {0.0f, 0.7f, 0.0f}, .color = {0.0f, 1.0f, 0.0f, 1.0f}},
         Vertex{.position = {0.7f, -0.7f, 0.0f}, .color = {0.0f, 0.0f, 1.0f, 1.0f}},
@@ -53,6 +53,6 @@ private:
     void createCommandPool();
     void createCommandBuffers();
     void initSync();
-    [[deprecated]] void recordCommandBuffers();
+    void recordCommandBuffer(VkCommandBuffer buffer, const VkFramebuffer framebuffer);
     void createDescriptors();
 };

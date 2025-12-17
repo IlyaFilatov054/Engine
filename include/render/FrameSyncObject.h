@@ -3,6 +3,5 @@
 
 struct FrameSyncObject {
     VkSemaphore imageAvailable;
-    VkSemaphore renderFinished;
-    VkFence gpuReady;
+    VkFence gpuExecuted;
 };

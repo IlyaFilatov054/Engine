@@ -14,6 +14,7 @@ public:
     const char** getExtensions(uint32_t &count) const;
     GLFWwindow* getWindow() const;
     void getSize(int &width, int &height) const;
+    void setTitle(const char* title);
 private:
     GLFWwindow* m_window = nullptr;
 };

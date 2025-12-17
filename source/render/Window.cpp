@@ -32,3 +32,7 @@ GLFWwindow* Window::getWindow() const{
 void Window::getSize(int &width, int &height) const {
     glfwGetFramebufferSize(m_window, &width, &height);
 }
+
+void Window::setTitle(const char* title) {
+    glfwSetWindowTitle(m_window, title);
+}

@@ -1,8 +1,10 @@
 #include "render/RenderCore.h"
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
+#include <type_traits>
 #include <vector>
 #include <vulkan/vulkan_core.h>
-#include "render/Buffer.h"
 #include "render/StagedBuffer.h"
 #include "render/Vertex.h"
 #include "render/VkUtils.h"
@@ -14,18 +16,16 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     
     createRenderPass();
     createFramebuffers();
+    initSync();
     createDescriptors();
     createPipeline();
     createCommandPool();
     createCommandBuffers();
-    initSync();
     
-    buffer = new StagedBuffer(m_context, verticies.size() * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_commandPool);
-    buffer->setData(verticies.data());
+    m_buffer = new StagedBuffer(m_context, m_verticies.size() * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_commandPool);
+    m_buffer->setData(m_verticies.data());
     camera = new Camera(m_context, m_cameraDescriptorSet);
     camera->position.z += 2.5f;
-
-    recordCommandBuffers();
 }
 
 RenderCore::~RenderCore(){
@@ -34,8 +34,8 @@ RenderCore::~RenderCore(){
     vkDestroyDescriptorSetLayout(m_context->device(), m_descriptorSetLayout, nullptr);
     for(uint32_t i = 0; i < m_syncObjects.size(); i++){
         vkDestroySemaphore(m_context->device(), m_syncObjects[i].imageAvailable, nullptr);
-        vkDestroySemaphore(m_context->device(), m_syncObjects[i].renderFinished, nullptr);
-        vkDestroyFence(m_context->device(), m_syncObjects[i].gpuReady, nullptr);
+        vkDestroySemaphore(m_context->device(), m_renderFinished[i], nullptr);
+        vkDestroyFence(m_context->device(), m_syncObjects[i].gpuExecuted, nullptr);
     }
     vkFreeCommandBuffers(m_context->device(), m_commandPool, m_commandBuffers.size(), m_commandBuffers.data());
     vkDestroyCommandPool(m_context->device(), m_commandPool, nullptr);
@@ -50,12 +50,17 @@ RenderCore::~RenderCore(){
     vkDestroyRenderPass(m_context->device(), m_renderPass, nullptr);
 }
 
+float c = 0;
 void RenderCore::drawFrame() {
+    c += 0.001f;
+    //camera->position.y += 5 * std::sin(c);
+    camera->position.x = 4 * std::cos(c);
+    camera->position.z = 4 * std::sin(c);
     camera->update();
     auto& currentSyncObject = m_syncObjects[m_currentFrame];
 
-    vkWaitForFences(m_context->device(), 1, &currentSyncObject.gpuReady, VK_TRUE, UINT64_MAX);
-    vkResetFences(m_context->device(), 1, &currentSyncObject.gpuReady);
+    vkWaitForFences(m_context->device(), 1, &currentSyncObject.gpuExecuted, VK_TRUE, UINT64_MAX);
+    vkResetFences(m_context->device(), 1, &currentSyncObject.gpuExecuted);
 
     uint32_t imageIndex;
     auto res = vkAcquireNextImageKHR(
@@ -65,18 +70,9 @@ void RenderCore::drawFrame() {
         currentSyncObject.imageAvailable,
         VK_NULL_HANDLE,
         &imageIndex);
+    //validateVkResult(res, "vkAcquireNextImageKHR");
 
-    if (res == VK_ERROR_OUT_OF_DATE_KHR) {
-        validateVkResult(res, "out of date");
-        return;
-    }
-    else if (res == VK_SUBOPTIMAL_KHR) {
-
-    }
-    else validateVkResult(res, "vkAcquireNextImageKHR");
-
-    if(m_attachedSyncObjects[imageIndex] && m_attachedSyncObjects[imageIndex] != &currentSyncObject) vkWaitForFences(m_context->device(), 1, &m_attachedSyncObjects[imageIndex]->gpuReady, VK_TRUE, UINT64_MAX);
-    m_attachedSyncObjects[imageIndex] = &currentSyncObject;
+    recordCommandBuffer(m_commandBuffers[m_currentFrame], m_framebuffers[imageIndex]);
 
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSubmitInfo submitInfo {
@@ -85,16 +81,16 @@ void RenderCore::drawFrame() {
         .pWaitSemaphores = &currentSyncObject.imageAvailable,
         .pWaitDstStageMask = waitStages,
         .commandBufferCount = 1,
-        .pCommandBuffers = &m_commandBuffers[imageIndex],
+        .pCommandBuffers = &m_commandBuffers[m_currentFrame],
         .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &currentSyncObject.renderFinished
+        .pSignalSemaphores = &m_renderFinished[imageIndex]
     };
-    vkQueueSubmit(m_context->graphicsQueue(), 1, &submitInfo, currentSyncObject.gpuReady);
+    vkQueueSubmit(m_context->graphicsQueue(), 1, &submitInfo, currentSyncObject.gpuExecuted);
 
     VkPresentInfoKHR presentInfo {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &currentSyncObject.renderFinished,
+        .pWaitSemaphores = &m_renderFinished[imageIndex],
         .swapchainCount = 1,
         .pSwapchains =  &m_swapchain->swapchain(),
         .pImageIndices = &imageIndex
@@ -246,7 +242,7 @@ void RenderCore::createPipeline() {
         .depthClampEnable = VK_FALSE,
         .rasterizerDiscardEnable = VK_FALSE,
         .polygonMode = VK_POLYGON_MODE_FILL,
-        .cullMode = VK_CULL_MODE_BACK_BIT,
+        .cullMode = VK_CULL_MODE_NONE,
         .frontFace = VK_FRONT_FACE_CLOCKWISE,
         .depthBiasEnable  = VK_FALSE,
         .lineWidth = 1.0f,
@@ -313,7 +309,7 @@ void RenderCore::createCommandPool() {
 }
 
 void RenderCore::createCommandBuffers() {
-    m_commandBuffers.resize(m_framebuffers.size());
+    m_commandBuffers.resize(m_maxFramesInFlight);
     VkCommandBufferAllocateInfo commandBufferInfo {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = m_commandPool,
@@ -323,43 +319,37 @@ void RenderCore::createCommandBuffers() {
     vkAllocateCommandBuffers(m_context->device(), &commandBufferInfo, m_commandBuffers.data());
 }
 
-void RenderCore::recordCommandBuffers() {
-    for(uint32_t i = 0; i < m_commandBuffers.size(); i++){
-        VkCommandBufferBeginInfo beginInfo {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
-        };
-        vkBeginCommandBuffer(m_commandBuffers[i], &beginInfo);
-        
-        VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
-
-        VkRenderPassBeginInfo renderPassInfo {
-            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-            .renderPass = m_renderPass,
-            .framebuffer = m_framebuffers[i],
-            .renderArea = {.offset = {0, 0}, .extent = m_swapchain->extent()},
-            .clearValueCount = 1,
-            .pClearValues = &clearColor
-        };
-        vkCmdBeginRenderPass(m_commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-        vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
-        
-        vkCmdBindDescriptorSets(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_cameraDescriptorSet, 0, nullptr);
-
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, &buffer->buffer(), offsets);
-
-        vkCmdDraw(m_commandBuffers[i], 3, 1, 0, 0);
-        
-        vkCmdEndRenderPass(m_commandBuffers[i]);
-        vkEndCommandBuffer(m_commandBuffers[i]);
-    }
+void RenderCore::recordCommandBuffer(VkCommandBuffer buffer, const VkFramebuffer framebuffer) {
+    VkCommandBufferBeginInfo beginInfo {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+    };
+    vkBeginCommandBuffer(buffer, &beginInfo);
+    
+    VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
+    VkRenderPassBeginInfo renderPassInfo {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+        .renderPass = m_renderPass,
+        .framebuffer = framebuffer,
+        .renderArea = {.offset = {0, 0}, .extent = m_swapchain->extent()},
+        .clearValueCount = 1,
+        .pClearValues = &clearColor
+    };
+    vkCmdBeginRenderPass(buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+    
+    vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_cameraDescriptorSet, 0, nullptr);
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(buffer, 0, 1, &m_buffer->buffer(), offsets);
+    vkCmdDraw(buffer, 3, 1, 0, 0);
+    
+    vkCmdEndRenderPass(buffer);
+    vkEndCommandBuffer(buffer);
 }
 
 void RenderCore::initSync() {
-    m_maxFramesInFlight = m_framebuffers.size();
+    m_maxFramesInFlight = std::min((uint32_t)2, (uint32_t)m_framebuffers.size());
     m_syncObjects.resize(m_maxFramesInFlight);
-    m_attachedSyncObjects.resize(m_maxFramesInFlight, nullptr);
+    m_renderFinished.resize(m_framebuffers.size());
 
     VkSemaphoreCreateInfo semaphoreCreateInfo {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
@@ -370,10 +360,12 @@ void RenderCore::initSync() {
         .flags = VK_FENCE_CREATE_SIGNALED_BIT
     };
 
-    for(uint32_t i = 0; i < m_syncObjects.size(); i++){
+    for(uint32_t i = 0; i < m_syncObjects.size(); i++) {
         vkCreateSemaphore(m_context->device(), &semaphoreCreateInfo, nullptr, &m_syncObjects[i].imageAvailable);
-        vkCreateSemaphore(m_context->device(), &semaphoreCreateInfo, nullptr, &m_syncObjects[i].renderFinished);
-        vkCreateFence(m_context->device(), &fenceInfo, nullptr, &m_syncObjects[i].gpuReady);
+        vkCreateFence(m_context->device(), &fenceInfo, nullptr, &m_syncObjects[i].gpuExecuted);
+    }
+    for(uint32_t i = 0; i < m_renderFinished.size(); i++) {
+        vkCreateSemaphore(m_context->device(), &semaphoreCreateInfo, nullptr, &m_renderFinished[i]);
     }
 }
 
