@@ -72,7 +72,7 @@ void RenderCore::drawFrame() {
         &imageIndex);
     //validateVkResult(res, "vkAcquireNextImageKHR");
     
-    vkResetCommandBuffer(m_commandBuffers[m_synchronization->currentFrame()], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+    vkResetCommandBuffer(m_commandBuffers[m_synchronization->currentFrame()], 0);
     recordCommandBuffer(m_commandBuffers[m_synchronization->currentFrame()], m_framebuffers[imageIndex]);
 
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
