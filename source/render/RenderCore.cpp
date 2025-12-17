@@ -3,6 +3,7 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 #include "render/Buffer.h"
+#include "render/StagedBuffer.h"
 #include "render/Vertex.h"
 #include "render/VkUtils.h"
 #include "core/Utils.h"
@@ -19,7 +20,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     createCommandBuffers();
     initSync();
     
-    buffer = new Buffer(verticies.size() * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_context);
+    buffer = new StagedBuffer(m_context, verticies.size() * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_commandPool);
     buffer->setData(verticies.data());
     camera = new Camera(m_context, m_cameraDescriptorSet);
     camera->position.z += 2.5f;
@@ -36,6 +37,7 @@ RenderCore::~RenderCore(){
         vkDestroySemaphore(m_context->device(), m_syncObjects[i].renderFinished, nullptr);
         vkDestroyFence(m_context->device(), m_syncObjects[i].gpuReady, nullptr);
     }
+    vkFreeCommandBuffers(m_context->device(), m_commandPool, m_commandBuffers.size(), m_commandBuffers.data());
     vkDestroyCommandPool(m_context->device(), m_commandPool, nullptr);
     for(const auto& s : m_shaders){
         vkDestroyShaderModule(m_context->device(), s, nullptr);

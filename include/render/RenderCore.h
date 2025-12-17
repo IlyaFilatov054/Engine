@@ -6,8 +6,9 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 #include "render/FrameSyncObject.h"
-#include "render/Buffer.h"
+#include "render/StagedBuffer.h"
 #include "render/Camera.h"
+#include "render/Vertex.h"
 
 class RenderCore {
 public:
@@ -33,7 +34,7 @@ private:
     std::vector<FrameSyncObject> m_syncObjects;
     std::vector<FrameSyncObject*> m_attachedSyncObjects;
     uint32_t m_currentFrame = 0;
-    [[deprecated]] Buffer* buffer = nullptr; 
+    [[deprecated]] StagedBuffer* buffer = nullptr; 
     [[deprecated]] std::vector<Vertex> verticies {
         Vertex{.position = {-0.7f, -0.7f, 0.0f}, .color = {1.0f, 0.0f, 0.0f, 1.0f}},
         Vertex{.position = {0.0f, 0.7f, 0.0f}, .color = {0.0f, 1.0f, 0.0f, 1.0f}},

@@ -2,7 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/fwd.hpp>
-#include "render/Buffer.h"
+#include "render/MappedBuffer.h"
 #include "render/VkContext.h"
 
 class Camera {
@@ -22,7 +22,7 @@ public:
 private:
     glm::mat4 m_view;
     glm::mat4 m_projection;
-    Buffer m_buffer;
+    MappedBuffer m_buffer;
     const VkContext* m_context;
     const VkDescriptorSet m_descriptorSet;
 };
