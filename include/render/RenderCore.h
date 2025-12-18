@@ -1,10 +1,13 @@
 #pragma once
 #include "render/Camera.h"
+#include "render/DepthImage.h"
+#include "render/PhysicalDevice.h"
 #include "render/VkContext.h"
 #include "render/Swapchain.h"
+#include <cstdint>
 #include <vector>
 #include <vulkan/vulkan_core.h>
-#include "render/StagedBuffer.h"
+#include "render/MeshBuffer.h"
 #include "render/Camera.h"
 #include "render/Vertex.h"
 #include "render/RenderSynchronization.h"
@@ -25,18 +28,26 @@ private:
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     std::vector<VkShaderModule> m_shaders;
-    
+
+    std::vector<DepthImage*> m_depthImages;
+
     VkCommandPool m_commandPool = VK_NULL_HANDLE;
     std::vector<VkCommandBuffer> m_commandBuffers;
     
     RenderSynchronization* m_synchronization = nullptr;
 
-    [[deprecated]] StagedBuffer* m_buffer = nullptr; 
-    [[deprecated]] std::vector<Vertex> m_verticies {
-        Vertex{.position = {-0.7f, -0.7f, 0.0f}, .color = {1.0f, 0.0f, 0.0f, 1.0f}},
-        Vertex{.position = {0.0f, 0.7f, 0.0f}, .color = {0.0f, 1.0f, 0.0f, 1.0f}},
-        Vertex{.position = {0.7f, -0.7f, 0.0f}, .color = {0.0f, 0.0f, 1.0f, 1.0f}},
+    [[deprecated]] MeshBuffer* m_buffer = nullptr; 
+    [[deprecated]] std::vector<Vertex> m_vertices {
+        Vertex{.position = {-1.0f, -1.0f, -1.0f}, .color = {1.0f, 0.0f, 0.0f, 1.0f}},
+        Vertex{.position = {1.0f, -1.0f, -1.0f}, .color = {0.0f, 1.0f, 0.0f, 1.0f}},
+        Vertex{.position = {1.0f, 1.0f, -1.0f}, .color = {0.0f, 0.0f, 1.0f, 1.0f}},
+        Vertex{.position = {-1.0f, 1.0f, -1.0f}, .color = {1.0f, 1.0f, 1.0f, 1.0f}},
+        Vertex{.position = {-1.0f, -1.0f, 1.0f}, .color = {1.0f, 0.0f, 0.0f, 1.0f}},
+        Vertex{.position = {1.0f, -1.0f, 1.0f}, .color = {0.0f, 1.0f, 0.0f, 1.0f}},
+        Vertex{.position = {1.0f, 1.0f, 1.0f}, .color = {0.0f, 0.0f, 1.0f, 1.0f}},
+        Vertex{.position = {-1.0f, 1.0f, 1.0f}, .color = {1.0f, 1.0f, 1.0f, 1.0f}},
     };
+    [[deprecated]] std::vector<uint32_t> m_indices {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
     [[deprecated]] Camera* camera = nullptr;
     
     VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
@@ -44,6 +55,7 @@ private:
     VkDescriptorSet m_cameraDescriptorSet = VK_NULL_HANDLE;
 
     void createRenderPass();
+    void createDepthBuffers();
     void createFramebuffers();
     VkShaderModule createShaderModule(const std::vector<char> code);
     void createPipeline();

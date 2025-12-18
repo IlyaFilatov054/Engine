@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+#include "render/DepthImage.h"
+#include "render/MeshBuffer.h"
 #include "render/RenderSynchronization.h"
 #include "render/StagedBuffer.h"
 #include "render/Vertex.h"
@@ -14,6 +16,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_swapchain = swapchain;
     
     createRenderPass();
+    createDepthBuffers();
     createFramebuffers();
     m_synchronization = new RenderSynchronization(m_context, m_framebuffers.size());
     createDescriptors();
@@ -21,8 +24,9 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     createCommandPool();
     createCommandBuffers();
     
-    m_buffer = new StagedBuffer(m_context, m_verticies.size() * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_commandPool);
-    m_buffer->setData(m_verticies.data());
+    m_buffer = new MeshBuffer(m_context, m_vertices.size() * sizeof(Vertex), m_indices.size(), m_commandPool);
+    m_buffer->setVertexData(m_vertices.data());
+    m_buffer->setIndexData(m_indices.data());
     camera = new Camera(m_context, m_cameraDescriptorSet);
 }
 
@@ -44,6 +48,10 @@ RenderCore::~RenderCore(){
 
     vkDestroyPipeline(m_context->device(), m_pipeline, nullptr);
     vkDestroyPipelineLayout(m_context->device(), m_pipelineLayout, nullptr);
+
+    for(const auto& d : m_depthImages){
+        delete  d;
+    }
 
     for(const auto& f : m_framebuffers){
         vkDestroyFramebuffer(m_context->device(), f, nullptr);
@@ -112,16 +120,31 @@ void RenderCore::createRenderPass() {
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
     };
-
     VkAttachmentReference colorAttachmentReference {
         .attachment = 0,
         .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     };
 
+    VkAttachmentDescription depthAttachment {
+        .format = VK_FORMAT_D32_SFLOAT,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+    };
+    VkAttachmentReference depthAttachmentReference {
+        .attachment = 1,
+        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+    };
+
     VkSubpassDescription subpassDescription {
         .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
         .colorAttachmentCount = 1,
-        .pColorAttachments = &colorAttachmentReference
+        .pColorAttachments = &colorAttachmentReference,
+        .pDepthStencilAttachment = &depthAttachmentReference
     };
 
     VkSubpassDependency subpassDependency {
@@ -133,10 +156,11 @@ void RenderCore::createRenderPass() {
         .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
     };
 
+    VkAttachmentDescription attachments[] = {colorAttachment, depthAttachment};
     VkRenderPassCreateInfo renderPassCreateInfo {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        .attachmentCount = 1,
-        .pAttachments = &colorAttachment,
+        .attachmentCount = 2,
+        .pAttachments = attachments,
         .subpassCount = 1,
         .pSubpasses = &subpassDescription,
         .dependencyCount = 1,
@@ -147,15 +171,22 @@ void RenderCore::createRenderPass() {
     validateVkResult(res, "vkCreateRenderPass");
 }
 
+void RenderCore::createDepthBuffers() {
+    for (uint32_t i = 0; i < m_swapchain->imageViews().size(); i++) {
+        m_depthImages.push_back(new DepthImage(m_context, m_swapchain));
+    }
+}
+
 void RenderCore::createFramebuffers() {
     const auto& imageViews = m_swapchain->imageViews();
     m_framebuffers.resize(imageViews.size());
     for(uint32_t i = 0; i < imageViews.size(); i++){
+        VkImageView attachments[] = {imageViews[i], m_depthImages[i]->view()};
         VkFramebufferCreateInfo framebufferInfo {
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
             .renderPass = m_renderPass,
-            .attachmentCount = 1,
-            .pAttachments = &imageViews[i],
+            .attachmentCount = 2,
+            .pAttachments = attachments,
             .width = m_swapchain->extent().width,
             .height = m_swapchain->extent().height,
             .layers = 1,
@@ -271,6 +302,15 @@ void RenderCore::createPipeline() {
         .pAttachments = &colorBlendAttachment
     };
 
+    VkPipelineDepthStencilStateCreateInfo depth {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .depthTestEnable = VK_TRUE,
+        .depthWriteEnable = VK_TRUE,
+        .depthCompareOp = VK_COMPARE_OP_LESS,
+        .depthBoundsTestEnable = VK_FALSE,
+        .stencilTestEnable = VK_FALSE
+    };
+
     VkPipelineLayoutCreateInfo pipelaneLayoutInfo {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = 1,
@@ -290,10 +330,11 @@ void RenderCore::createPipeline() {
         .pViewportState = &viewportState,
         .pRasterizationState = &rasterizer,
         .pMultisampleState = &multisampling,
+        .pDepthStencilState = &depth,
         .pColorBlendState = &colorBlend,
         .layout = m_pipelineLayout,
         .renderPass = m_renderPass,
-        .subpass = 0
+        .subpass = 0,
     };
 
     res = vkCreateGraphicsPipelines(m_context->device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline);
@@ -326,22 +367,25 @@ void RenderCore::recordCommandBuffer(VkCommandBuffer buffer, const VkFramebuffer
     };
     vkBeginCommandBuffer(buffer, &beginInfo);
     
-    VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
+    VkClearValue clearValues[2];
+    clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
+    clearValues[1].depthStencil = {1.0f, 0};
     VkRenderPassBeginInfo renderPassInfo {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
         .renderPass = m_renderPass,
         .framebuffer = framebuffer,
         .renderArea = {.offset = {0, 0}, .extent = m_swapchain->extent()},
-        .clearValueCount = 1,
-        .pClearValues = &clearColor
+        .clearValueCount = 2,
+        .pClearValues = clearValues
     };
     vkCmdBeginRenderPass(buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
     
     vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_cameraDescriptorSet, 0, nullptr);
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(buffer, 0, 1, &m_buffer->buffer(), offsets);
-    vkCmdDraw(buffer, 3, 1, 0, 0);
+    vkCmdBindVertexBuffers(buffer, 0, 1, &m_buffer->vertexBuffer(), offsets);
+    vkCmdBindIndexBuffer(buffer, m_buffer->indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(buffer, m_buffer->indicesCount(), 1, 0, 0, 0);
     
     vkCmdEndRenderPass(buffer);
     vkEndCommandBuffer(buffer);
