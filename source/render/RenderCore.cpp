@@ -3,10 +3,8 @@
 #include <cstdint>
 #include <vector>
 #include <vulkan/vulkan_core.h>
-#include "render/DepthImage.h"
+#include "render/FrameManager.h"
 #include "render/MeshBuffer.h"
-#include "render/RenderSynchronization.h"
-#include "render/StagedBuffer.h"
 #include "render/Vertex.h"
 #include "render/VkUtils.h"
 #include "core/Utils.h"
@@ -16,13 +14,10 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_swapchain = swapchain;
     
     createRenderPass();
-    createDepthBuffers();
-    createFramebuffers();
-    m_synchronization = new RenderSynchronization(m_context, m_framebuffers.size());
+    createCommandPool();
+    m_frameManager = new FrameManager(m_context, m_swapchain, m_commandPool, m_renderPass);
     createDescriptors();
     createPipeline();
-    createCommandPool();
-    createCommandBuffers();
     
     m_buffer = new MeshBuffer(m_context, m_vertices.size() * sizeof(Vertex), m_indices.size(), m_commandPool);
     m_buffer->setVertexData(m_vertices.data());
@@ -32,16 +27,13 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
 
 RenderCore::~RenderCore(){
     vkQueueWaitIdle(m_context->graphicsQueue());
+    
     delete camera;
     delete m_buffer;
-    //vkFreeDescriptorSets(m_context->device(), m_descriptorPool, 1, &m_cameraDescriptorSet);
+
     vkDestroyDescriptorPool(m_context->device(), m_descriptorPool, nullptr);
     vkDestroyDescriptorSetLayout(m_context->device(), m_descriptorSetLayout, nullptr);
 
-    delete m_synchronization;
-
-    vkFreeCommandBuffers(m_context->device(), m_commandPool, m_commandBuffers.size(), m_commandBuffers.data());
-    vkDestroyCommandPool(m_context->device(), m_commandPool, nullptr);
     for(const auto& s : m_shaders){
         vkDestroyShaderModule(m_context->device(), s, nullptr);
     }
@@ -49,13 +41,9 @@ RenderCore::~RenderCore(){
     vkDestroyPipeline(m_context->device(), m_pipeline, nullptr);
     vkDestroyPipelineLayout(m_context->device(), m_pipelineLayout, nullptr);
 
-    for(const auto& d : m_depthImages){
-        delete  d;
-    }
-
-    for(const auto& f : m_framebuffers){
-        vkDestroyFramebuffer(m_context->device(), f, nullptr);
-    }
+    delete m_frameManager;
+    
+    vkDestroyCommandPool(m_context->device(), m_commandPool, nullptr);
 
     vkDestroyRenderPass(m_context->device(), m_renderPass, nullptr);
 }
@@ -68,45 +56,45 @@ void RenderCore::drawFrame() {
     camera->position.z = 4 * std::sin(c);
     camera->update();
 
-    m_synchronization->waitCurrentFence();
+    m_frameManager->currentFrameResources().waitFence();
 
     uint32_t imageIndex;
     auto res = vkAcquireNextImageKHR(
         m_context->device(),
         m_swapchain->swapchain(),
         UINT64_MAX,
-        m_synchronization->imageAvailable(),
+        m_frameManager->currentFrameResources().imageAcquiredSemaphore(),
         VK_NULL_HANDLE,
         &imageIndex);
     //validateVkResult(res, "vkAcquireNextImageKHR");
     
-    vkResetCommandBuffer(m_commandBuffers[m_synchronization->currentFrame()], 0);
-    recordCommandBuffer(m_commandBuffers[m_synchronization->currentFrame()], m_framebuffers[imageIndex]);
+    vkResetCommandBuffer(m_frameManager->currentFrameResources().commandBuffer(), 0);
+    recordCommandBuffer(m_frameManager->currentFrameResources().commandBuffer(), m_frameManager->imageResources(imageIndex).framebuffer());
 
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSubmitInfo submitInfo {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &m_synchronization->imageAvailable(),
+        .pWaitSemaphores = &m_frameManager->currentFrameResources().imageAcquiredSemaphore(),
         .pWaitDstStageMask = waitStages,
         .commandBufferCount = 1,
-        .pCommandBuffers = &m_commandBuffers[m_synchronization->currentFrame()],
+        .pCommandBuffers = &m_frameManager->currentFrameResources().commandBuffer(),
         .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &m_synchronization->renderFinishedSemaphore(imageIndex)
+        .pSignalSemaphores = &m_frameManager->imageResources(imageIndex).renderFinishedSemaphore()
     };
-    vkQueueSubmit(m_context->graphicsQueue(), 1, &submitInfo, m_synchronization->gpuReadyFence());
+    vkQueueSubmit(m_context->graphicsQueue(), 1, &submitInfo, m_frameManager->currentFrameResources().submitFence());
 
     VkPresentInfoKHR presentInfo {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &m_synchronization->renderFinishedSemaphore(imageIndex),
+        .pWaitSemaphores = &m_frameManager->imageResources(imageIndex).renderFinishedSemaphore(),
         .swapchainCount = 1,
         .pSwapchains =  &m_swapchain->swapchain(),
         .pImageIndices = &imageIndex
     };
     vkQueuePresentKHR(m_context->graphicsQueue(), &presentInfo);
 
-    m_synchronization->nextFrame();
+    m_frameManager->nextFrame();
 }
 
 void RenderCore::createRenderPass() {
@@ -169,31 +157,6 @@ void RenderCore::createRenderPass() {
 
     auto res = vkCreateRenderPass(m_context->device(), &renderPassCreateInfo, nullptr, &m_renderPass);
     validateVkResult(res, "vkCreateRenderPass");
-}
-
-void RenderCore::createDepthBuffers() {
-    for (uint32_t i = 0; i < m_swapchain->imageViews().size(); i++) {
-        m_depthImages.push_back(new DepthImage(m_context, m_swapchain));
-    }
-}
-
-void RenderCore::createFramebuffers() {
-    const auto& imageViews = m_swapchain->imageViews();
-    m_framebuffers.resize(imageViews.size());
-    for(uint32_t i = 0; i < imageViews.size(); i++){
-        VkImageView attachments[] = {imageViews[i], m_depthImages[i]->view()};
-        VkFramebufferCreateInfo framebufferInfo {
-            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-            .renderPass = m_renderPass,
-            .attachmentCount = 2,
-            .pAttachments = attachments,
-            .width = m_swapchain->extent().width,
-            .height = m_swapchain->extent().height,
-            .layers = 1,
-        };
-        auto res = vkCreateFramebuffer(m_context->device(), &framebufferInfo, nullptr, &m_framebuffers[i]);
-        validateVkResult(res, "vkCreateFramebuffer");
-    }
 }
 
 VkShaderModule RenderCore::createShaderModule(const std::vector<char> code) {
@@ -348,17 +311,6 @@ void RenderCore::createCommandPool() {
         .queueFamilyIndex = m_context->graphicsQueueIndex(),
     };
     vkCreateCommandPool(m_context->device(), &commandPoolInfo, nullptr, &m_commandPool);
-}
-
-void RenderCore::createCommandBuffers() {
-    m_commandBuffers.resize(m_synchronization->maxFrames());
-    VkCommandBufferAllocateInfo commandBufferInfo {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .commandPool = m_commandPool,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = (uint32_t)m_commandBuffers.size(),
-    };
-    vkAllocateCommandBuffers(m_context->device(), &commandBufferInfo, m_commandBuffers.data());
 }
 
 void RenderCore::recordCommandBuffer(VkCommandBuffer buffer, const VkFramebuffer framebuffer) {

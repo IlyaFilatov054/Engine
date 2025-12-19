@@ -1,7 +1,6 @@
 #pragma once
 #include "render/Camera.h"
-#include "render/DepthImage.h"
-#include "render/PhysicalDevice.h"
+#include "render/FrameManager.h"
 #include "render/VkContext.h"
 #include "render/Swapchain.h"
 #include <cstdint>
@@ -10,7 +9,6 @@
 #include "render/MeshBuffer.h"
 #include "render/Camera.h"
 #include "render/Vertex.h"
-#include "render/RenderSynchronization.h"
 
 class RenderCore {
 public:
@@ -28,13 +26,8 @@ private:
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     std::vector<VkShaderModule> m_shaders;
-
-    std::vector<DepthImage*> m_depthImages;
-
     VkCommandPool m_commandPool = VK_NULL_HANDLE;
-    std::vector<VkCommandBuffer> m_commandBuffers;
-    
-    RenderSynchronization* m_synchronization = nullptr;
+    FrameManager* m_frameManager = nullptr;
 
     [[deprecated]] MeshBuffer* m_buffer = nullptr; 
     [[deprecated]] std::vector<Vertex> m_vertices {
@@ -60,7 +53,6 @@ private:
     VkShaderModule createShaderModule(const std::vector<char> code);
     void createPipeline();
     void createCommandPool();
-    void createCommandBuffers();
     void recordCommandBuffer(VkCommandBuffer buffer, const VkFramebuffer framebuffer);
     void createDescriptors();
 };
