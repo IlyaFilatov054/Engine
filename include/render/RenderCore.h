@@ -22,7 +22,6 @@ private:
     const Swapchain* m_swapchain = nullptr;
     
     VkRenderPass m_renderPass = VK_NULL_HANDLE;
-    std::vector<VkFramebuffer> m_framebuffers;
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     std::vector<VkShaderModule> m_shaders;
@@ -49,7 +48,6 @@ private:
 
     void createRenderPass();
     void createDepthBuffers();
-    void createFramebuffers();
     VkShaderModule createShaderModule(const std::vector<char> code);
     void createPipeline();
     void createCommandPool();
