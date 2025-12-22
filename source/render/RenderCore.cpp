@@ -23,6 +23,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_buffer->setVertexData(m_vertices.data());
     m_buffer->setIndexData(m_indices.data());
     camera = new Camera(m_context, m_cameraDescriptorSet);
+    camera->aspect = (float)m_swapchain->extent().width / (float)m_swapchain->extent().height;
 }
 
 RenderCore::~RenderCore(){
@@ -54,6 +55,7 @@ void RenderCore::drawFrame() {
     //camera->position.y += 5 * std::sin(c);
     camera->position.x = 4 * std::cos(c);
     camera->position.z = 4 * std::sin(c);
+    camera->position.y = 4 * std::sin(0.333f * c);
     camera->update();
 
     m_frameManager->currentFrameResources().waitFence();
