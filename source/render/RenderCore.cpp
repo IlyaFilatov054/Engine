@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+#include "render/DescriptorManager.h"
 #include "render/FrameManager.h"
 #include "render/MeshBuffer.h"
 #include "render/Vertex.h"
@@ -12,16 +13,16 @@
 RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_context = context;
     m_swapchain = swapchain;
-    
+
+    m_descriptorManager = new DescriptorManager(context);
     createRenderPass();
     m_frameManager = new FrameManager(m_context, m_swapchain, m_renderPass);
-    createDescriptors();
     createPipeline();
     
     m_buffer = new MeshBuffer(m_context, m_vertices.size() * sizeof(Vertex), m_indices.size());
     m_buffer->setVertexData(m_vertices.data());
     m_buffer->setIndexData(m_indices.data());
-    camera = new Camera(m_context, m_cameraDescriptorSet);
+    camera = new Camera(m_context, m_descriptorManager->cameraDescriptorSet());
     camera->aspect = (float)m_swapchain->extent().width / (float)m_swapchain->extent().height;
 }
 
@@ -30,9 +31,6 @@ RenderCore::~RenderCore(){
     
     delete camera;
     delete m_buffer;
-
-    vkDestroyDescriptorPool(m_context->device(), m_descriptorPool, nullptr);
-    vkDestroyDescriptorSetLayout(m_context->device(), m_descriptorSetLayout, nullptr);
 
     for(const auto& s : m_shaders){
         vkDestroyShaderModule(m_context->device(), s, nullptr);
@@ -44,6 +42,8 @@ RenderCore::~RenderCore(){
     delete m_frameManager;
 
     vkDestroyRenderPass(m_context->device(), m_renderPass, nullptr);
+    
+    delete m_descriptorManager;
 }
 
 float c = 0;
@@ -276,7 +276,7 @@ void RenderCore::createPipeline() {
     VkPipelineLayoutCreateInfo pipelaneLayoutInfo {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = 1,
-        .pSetLayouts = &m_descriptorSetLayout,
+        .pSetLayouts = &m_descriptorManager->layout(),
         .pushConstantRangeCount = 0,
     };
 
@@ -323,7 +323,7 @@ void RenderCore::recordCommandBuffer(VkCommandBuffer buffer, const VkFramebuffer
     vkCmdBeginRenderPass(buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
     
-    vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_cameraDescriptorSet, 0, nullptr);
+    vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorManager->cameraDescriptorSet(), 0, nullptr);
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(buffer, 0, 1, &m_buffer->vertexBuffer(), offsets);
     vkCmdBindIndexBuffer(buffer, m_buffer->indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
@@ -331,41 +331,4 @@ void RenderCore::recordCommandBuffer(VkCommandBuffer buffer, const VkFramebuffer
     
     vkCmdEndRenderPass(buffer);
     vkEndCommandBuffer(buffer);
-}
-
-void RenderCore::createDescriptors() {
-    VkDescriptorSetLayoutBinding layoutBinding {
-        .binding = 0,
-        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1,
-        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
-    };
-
-    VkDescriptorSetLayoutCreateInfo layoutInfo {
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-        .bindingCount = 1,
-        .pBindings = &layoutBinding
-    };
-    vkCreateDescriptorSetLayout(m_context->device(), &layoutInfo, nullptr, &m_descriptorSetLayout);
-
-    VkDescriptorPoolSize poolSize {
-        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1,
-    };
-
-    VkDescriptorPoolCreateInfo poolInfo {
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        .maxSets = 1,
-        .poolSizeCount = 1,
-        .pPoolSizes = &poolSize,
-    };
-    vkCreateDescriptorPool(m_context->device(), &poolInfo, nullptr, &m_descriptorPool);
-
-    VkDescriptorSetAllocateInfo setAllocInfo {
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .descriptorPool = m_descriptorPool,
-        .descriptorSetCount = 1,
-        .pSetLayouts = &m_descriptorSetLayout
-    };
-    vkAllocateDescriptorSets(m_context->device(), &setAllocInfo, &m_cameraDescriptorSet);
 }
