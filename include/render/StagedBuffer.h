@@ -6,7 +6,7 @@
 
 class StagedBuffer : public AbstractBuffer {
 public:
-    StagedBuffer(const VkContext* context, uint32_t size, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryFlags, const VkCommandPool pool);
+    StagedBuffer(const VkContext* context, uint32_t size, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryFlags);
     ~StagedBuffer() override = default;
 
     const VkBuffer& buffer() const override;
@@ -14,5 +14,4 @@ public:
     
 private:
     Buffer m_buffer;
-    VkCommandPool m_pool;
 };

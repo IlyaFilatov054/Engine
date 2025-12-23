@@ -9,7 +9,7 @@
 
 class FrameManager {
 public:
-    FrameManager(const VkContext* context, const Swapchain* swapchain, const VkCommandPool pool, const VkRenderPass renderPass);
+    FrameManager(const VkContext* context, const Swapchain* swapchain, const VkRenderPass renderPass);
     ~FrameManager();
 
     void nextFrame();
@@ -18,7 +18,6 @@ public:
 private:
     const VkContext* m_context;
     const Swapchain* m_swapchain;
-    const VkCommandPool m_commandPool;
     const VkRenderPass m_renderPass;
 
     std::vector<ImageResources*> m_imageResources;

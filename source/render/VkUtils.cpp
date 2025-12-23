@@ -1,6 +1,7 @@
 #include "render/VkUtils.h"
 #include <cstdlib>
 #include <iostream>
+#include <vulkan/vulkan_core.h>
 
 void validateVkResult(const VkResult &result, const char *message){
     if(result == VK_SUCCESS) return;
@@ -13,7 +14,15 @@ void vkRendererError(const char* message) {
     exit(1);
 }
 
-void executeOnGpu(const VkContext* context, const VkCommandPool pool, std::function<void(const VkCommandBuffer commandBuffer)> function) {
+void executeOnGpu(const VkContext* context, std::function<void(const VkCommandBuffer commandBuffer)> function) {
+    VkCommandPool pool = VK_NULL_HANDLE;
+    VkCommandPoolCreateInfo commandPoolInfo {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        .queueFamilyIndex = context->graphicsQueueIndex(),
+    };
+    vkCreateCommandPool(context->device(), &commandPoolInfo, nullptr, &pool);
+
     VkCommandBufferAllocateInfo commandBufferAllocateInfo {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = pool,
@@ -40,4 +49,5 @@ void executeOnGpu(const VkContext* context, const VkCommandPool pool, std::funct
     vkQueueWaitIdle(context->graphicsQueue());
 
     vkFreeCommandBuffers(context->device(), pool, 1, &commandBuffer);
+    vkDestroyCommandPool(context->device(), pool, nullptr);
 }

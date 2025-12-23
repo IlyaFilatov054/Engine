@@ -5,11 +5,10 @@
 
 class Texture {
 public:
-    Texture(const VkContext* context, const VkCommandPool pool, const char* path);
+    Texture(const VkContext* context, const char* path);
     ~Texture();
 private:
     const VkContext* m_context;
-    const VkCommandPool m_pool;
 
     VkImage m_image = VK_NULL_HANDLE;
     VkDeviceMemory m_memory = VK_NULL_HANDLE;

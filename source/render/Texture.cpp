@@ -7,7 +7,7 @@
 #include "render/MappedBuffer.h"
 #include "render/VkUtils.h"
 
-Texture::Texture(const VkContext* context, const VkCommandPool pool, const char* path) : m_context(context), m_pool(pool) {
+Texture::Texture(const VkContext* context, const char* path) : m_context(context) {
     int width, height, channels;
     stbi_set_flip_vertically_on_load(true);
     auto pixels = stbi_load(path, &width, &height, &channels, STBI_rgb_alpha);
@@ -80,8 +80,8 @@ Texture::Texture(const VkContext* context, const VkCommandPool pool, const char*
         .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
         .anisotropyEnable = VK_FALSE,
         .maxAnisotropy = 0,
-        .unnormalizedCoordinates = VK_FALSE,
         .compareEnable = VK_FALSE,
+        .unnormalizedCoordinates = VK_FALSE,
     };
     vkCreateSampler(m_context->device(), &samplerInfo, nullptr, &m_sampler);
 }
@@ -121,7 +121,7 @@ void Texture::transitionImageLayout(const VkImage image, const VkFormat format, 
             .layerCount = 1
         },
     };
-    executeOnGpu(m_context, m_pool, [&](const VkCommandBuffer commandBuffer){
+    executeOnGpu(m_context, [&](const VkCommandBuffer commandBuffer){
         vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
     });    
 }
@@ -144,7 +144,7 @@ void Texture::copyBufferToImage(const AbstractBuffer* buffer) {
             .depth = 1
         }
     };
-    executeOnGpu(m_context, m_pool, [&](const VkCommandBuffer commandBuffer) {
+    executeOnGpu(m_context, [&](const VkCommandBuffer commandBuffer) {
         vkCmdCopyBufferToImage(commandBuffer, buffer->buffer(), m_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     });
 }

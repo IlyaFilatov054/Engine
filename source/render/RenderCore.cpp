@@ -14,12 +14,11 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_swapchain = swapchain;
     
     createRenderPass();
-    createCommandPool();
-    m_frameManager = new FrameManager(m_context, m_swapchain, m_commandPool, m_renderPass);
+    m_frameManager = new FrameManager(m_context, m_swapchain, m_renderPass);
     createDescriptors();
     createPipeline();
     
-    m_buffer = new MeshBuffer(m_context, m_vertices.size() * sizeof(Vertex), m_indices.size(), m_commandPool);
+    m_buffer = new MeshBuffer(m_context, m_vertices.size() * sizeof(Vertex), m_indices.size());
     m_buffer->setVertexData(m_vertices.data());
     m_buffer->setIndexData(m_indices.data());
     camera = new Camera(m_context, m_cameraDescriptorSet);
@@ -43,8 +42,6 @@ RenderCore::~RenderCore(){
     vkDestroyPipelineLayout(m_context->device(), m_pipelineLayout, nullptr);
 
     delete m_frameManager;
-    
-    vkDestroyCommandPool(m_context->device(), m_commandPool, nullptr);
 
     vkDestroyRenderPass(m_context->device(), m_renderPass, nullptr);
 }
@@ -304,15 +301,6 @@ void RenderCore::createPipeline() {
 
     res = vkCreateGraphicsPipelines(m_context->device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline);
     validateVkResult(res, "vkCreateGraphicsPipelines");
-}
-
-void RenderCore::createCommandPool() {
-    VkCommandPoolCreateInfo commandPoolInfo {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = m_context->graphicsQueueIndex(),
-    };
-    vkCreateCommandPool(m_context->device(), &commandPoolInfo, nullptr, &m_commandPool);
 }
 
 void RenderCore::recordCommandBuffer(VkCommandBuffer buffer, const VkFramebuffer framebuffer) {

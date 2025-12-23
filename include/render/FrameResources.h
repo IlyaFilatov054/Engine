@@ -6,7 +6,7 @@
 
 class FrameResources {
 public:
-    FrameResources(const VkContext* context, const VkCommandPool pool);
+    FrameResources(const VkContext* context);
     ~FrameResources();
     
     const VkSemaphore& imageAcquiredSemaphore() const;
@@ -15,12 +15,13 @@ public:
     const void waitFence() const;
 private:
     const VkContext* m_context;
-    const VkCommandPool m_commadPool;
-
+    
+    VkCommandPool m_commandPool = VK_NULL_HANDLE;
     VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
     VkSemaphore m_imageAcquired = VK_NULL_HANDLE;
     VkFence m_submited = VK_NULL_HANDLE;
 
+    void createCommandPool();
     void createCommandBuffer();
     void createSynchronization();
 };

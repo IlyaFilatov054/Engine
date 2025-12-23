@@ -7,7 +7,7 @@
 
 class MeshBuffer {
 public:
-    MeshBuffer(const VkContext* context, const uint32_t size, const uint32_t indices, const VkCommandPool pool);
+    MeshBuffer(const VkContext* context, const uint32_t size, const uint32_t indices);
     ~MeshBuffer() = default;
 
     const VkBuffer& vertexBuffer() const;

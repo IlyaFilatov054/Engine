@@ -25,7 +25,6 @@ private:
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     std::vector<VkShaderModule> m_shaders;
-    VkCommandPool m_commandPool = VK_NULL_HANDLE;
     FrameManager* m_frameManager = nullptr;
 
     [[deprecated]] MeshBuffer* m_buffer = nullptr; 
@@ -47,10 +46,8 @@ private:
     VkDescriptorSet m_cameraDescriptorSet = VK_NULL_HANDLE;
 
     void createRenderPass();
-    void createDepthBuffers();
     VkShaderModule createShaderModule(const std::vector<char> code);
     void createPipeline();
-    void createCommandPool();
     void recordCommandBuffer(VkCommandBuffer buffer, const VkFramebuffer framebuffer);
     void createDescriptors();
 };
