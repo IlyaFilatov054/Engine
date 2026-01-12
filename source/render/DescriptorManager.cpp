@@ -50,7 +50,7 @@ void DescriptorManager::createPool() {
 }
 
 void DescriptorManager::allocateDescriptors() {
-        VkDescriptorSetAllocateInfo setAllocInfo {
+    VkDescriptorSetAllocateInfo setAllocInfo {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
         .descriptorPool = m_descriptorPool,
         .descriptorSetCount = 1,

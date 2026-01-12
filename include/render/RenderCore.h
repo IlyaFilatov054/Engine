@@ -2,6 +2,8 @@
 #include "render/Camera.h"
 #include "render/DescriptorManager.h"
 #include "render/FrameManager.h"
+#include "render/RenderPass.h"
+#include "render/ShaderManager.h"
 #include "render/VkContext.h"
 #include "render/Swapchain.h"
 #include <cstdint>
@@ -21,11 +23,9 @@ public:
 private:
     const VkContext* m_context = nullptr;
     const Swapchain* m_swapchain = nullptr;
-    
-    VkRenderPass m_renderPass = VK_NULL_HANDLE;
-    VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
-    VkPipeline m_pipeline = VK_NULL_HANDLE;
-    std::vector<VkShaderModule> m_shaders;
+
+    RenderPass* m_renderPass = nullptr;
+    ShaderManager* m_shaderManager = nullptr;
     FrameManager* m_frameManager = nullptr;
     DescriptorManager* m_descriptorManager = nullptr;
 
@@ -43,8 +43,5 @@ private:
     [[deprecated]] std::vector<uint32_t> m_indices {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
     [[deprecated]] Camera* camera = nullptr;
 
-    void createRenderPass();
-    VkShaderModule createShaderModule(const std::vector<char> code);
-    void createPipeline();
     void recordCommandBuffer(VkCommandBuffer buffer, const VkFramebuffer framebuffer);
 };

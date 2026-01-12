@@ -8,7 +8,7 @@ Camera::Camera(const VkContext* context, const VkDescriptorSet descriptorSet)
  m_descriptorSet(descriptorSet),
  m_buffer(context, sizeof(glm::mat4) * 2,
 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) {
+VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
     VkDescriptorBufferInfo bufferInfo {
         .buffer = m_buffer.buffer(),
         .offset = 0,
