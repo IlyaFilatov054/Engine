@@ -1,5 +1,5 @@
 #include "render/ImageResources.h"
-#include "render/DepthImage.h"
+#include "render/Image.h"
 #include "render/Swapchain.h"
 #include "render/VkUtils.h"
 #include <vulkan/vulkan_core.h>
@@ -8,8 +8,9 @@ ImageResources::ImageResources(const VkContext* context, const Swapchain* swapch
 m_context(context),
 m_swapchain(swapchain),
 m_imageView(imageView),
-m_depthImage(context, swapchain),
-m_renderPass(renderPass) {;
+m_depthImage(context, VK_FORMAT_D32_SFLOAT, ImageType::Depth, 
+    {.width = swapchain->extent().width, .height = swapchain->extent().height, .depth = 1}),
+m_renderPass(renderPass) {
     createFramebuffer();
     createSemaphore();
 }

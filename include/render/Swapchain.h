@@ -3,6 +3,7 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
+#include "render/Image.h"
 #include "render/VkContext.h"
 
 class Swapchain {
@@ -11,7 +12,7 @@ public:
     ~Swapchain();
 
     const VkSurfaceFormatKHR& format() const;
-    const std::vector<VkImageView>& imageViews() const;
+    const std::vector<Image*>& images() const;
     const VkExtent2D& extent() const;
     const VkSwapchainKHR& swapchain() const;    
 private:
@@ -22,8 +23,7 @@ private:
     std::vector<VkPresentModeKHR> m_presentModes;
     VkPresentModeKHR m_selectedPresentMode;
     VkExtent2D m_swapchainExtent;
-    std::vector<VkImage> m_images;
-    std::vector<VkImageView> m_imageViews;
+    std::vector<Image*> m_images;
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
 
     void initCapabilities();
@@ -32,5 +32,4 @@ private:
     void initExtent();
     void createSwapchain();
     void createImages();
-    void createImageViews();
 };

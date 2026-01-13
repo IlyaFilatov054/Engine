@@ -1,9 +1,9 @@
 #include "render/Swapchain.h"
 #include <algorithm>
 #include <cstdint>
-#include <string>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+#include "render/Image.h"
 #include "render/VkUtils.h"
 
 Swapchain::Swapchain(const VkContext* context) {
@@ -15,13 +15,12 @@ Swapchain::Swapchain(const VkContext* context) {
     initExtent();
     createSwapchain();
     createImages();
-    createImageViews();
 }
 
 Swapchain::~Swapchain(){
     vkDeviceWaitIdle(m_context->device());
-    for(auto view : m_imageViews){
-        vkDestroyImageView(m_context->device(), view, nullptr);
+    for(auto& i : m_images) {
+        delete i;
     }
     vkDestroySwapchainKHR(m_context->device(), m_swapchain, nullptr);
 }
@@ -30,8 +29,8 @@ const VkSurfaceFormatKHR& Swapchain::format() const{
     return  m_selectedFormat;
 }
 
-const std::vector<VkImageView>& Swapchain::imageViews() const {
-    return  m_imageViews;
+const std::vector<Image*>& Swapchain::images() const {
+    return  m_images;
 }
 
 const VkExtent2D& Swapchain::extent() const {
@@ -114,36 +113,13 @@ void Swapchain::createSwapchain() {
 
 void Swapchain::createImages() {
     uint32_t swapchainImageCount;
+    std::vector<VkImage> images;
     auto res = vkGetSwapchainImagesKHR(m_context->device(), m_swapchain, &swapchainImageCount, nullptr);
     validateVkResult(res, "vkGetSwapchainImagesKHR 1");
-    m_images.resize(swapchainImageCount);
-    res = vkGetSwapchainImagesKHR(m_context->device(), m_swapchain, &swapchainImageCount, m_images.data());
+    images.resize(swapchainImageCount);
+    res = vkGetSwapchainImagesKHR(m_context->device(), m_swapchain, &swapchainImageCount, images.data());
     validateVkResult(res, "vkGetSwapchainImagesKHR 2");
-}
-
-void Swapchain::createImageViews() {
-    uint32_t swapchainImageCount = m_images.size();
-    m_imageViews.resize(swapchainImageCount);
-    for(uint32_t i = 0; i < swapchainImageCount; i++){
-        VkImageViewCreateInfo imageViewCreateInfo {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .image = m_images[i],
-            .viewType = VK_IMAGE_VIEW_TYPE_2D,
-            .format = m_selectedFormat.format,
-            .components = {
-                .r = VK_COMPONENT_SWIZZLE_IDENTITY,
-                .g = VK_COMPONENT_SWIZZLE_IDENTITY,
-                .b = VK_COMPONENT_SWIZZLE_IDENTITY,
-                .a = VK_COMPONENT_SWIZZLE_IDENTITY,
-            },
-        };
-        imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-        imageViewCreateInfo.subresourceRange.levelCount = 1;
-        imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-        imageViewCreateInfo.subresourceRange.layerCount = 1;
-
-        auto res = vkCreateImageView(m_context->device(), &imageViewCreateInfo, nullptr, &m_imageViews[i]);
-        validateVkResult(res, ("vkCreateImageView " + std::to_string(i)).data());
+    for(auto& i : images) {
+        m_images.push_back(new Image(m_context, m_selectedFormat.format, ImageType::Color, i));
     }
 }

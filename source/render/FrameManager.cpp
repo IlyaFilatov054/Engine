@@ -8,8 +8,8 @@ FrameManager::FrameManager(const VkContext* context, const Swapchain* swapchain,
 m_context(context),
 m_swapchain(swapchain),
 m_renderPass(renderPass),
-m_maxFrames(std::min(2u, (uint32_t)swapchain->imageViews().size())) {
-    for(const auto& i : m_swapchain->imageViews()) m_imageResources.push_back(new ImageResources(m_context, m_swapchain, i, m_renderPass));
+m_maxFrames(std::min(2u, (uint32_t)swapchain->images().size())) {
+    for(const auto& i : m_swapchain->images()) m_imageResources.push_back(new ImageResources(m_context, m_swapchain, i->view(), m_renderPass));
     for(uint32_t i = 0; i < m_maxFrames; i++) m_frameResources.push_back(new FrameResources(m_context));
 }
 
