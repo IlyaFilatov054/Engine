@@ -120,8 +120,8 @@ void Swapchain::createImages() {
     res = vkGetSwapchainImagesKHR(m_context->device(), m_swapchain, &swapchainImageCount, images.data());
     validateVkResult(res, "vkGetSwapchainImagesKHR 2");
     for(auto& i : images) {
-        Image* image = new Image(m_context, i);
-        image->createView(m_selectedFormat.format, VK_IMAGE_ASPECT_COLOR_BIT);
+        Image* image = new Image(m_context, m_selectedFormat.format, i);
+        image->createView(VK_IMAGE_ASPECT_COLOR_BIT);
         m_images.push_back(image);
     }
 }

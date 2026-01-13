@@ -9,9 +9,9 @@ m_context(context),
 m_swapchain(swapchain),
 m_imageView(imageView),
 m_renderPass(renderPass) {
-    m_depthImage = new Image(m_context);
-    m_depthImage->createImage(VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, {.width = swapchain->extent().width, .height = swapchain->extent().height, .depth = 1});
-    m_depthImage->createView(VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT);
+    m_depthImage = new Image(m_context, VK_FORMAT_D32_SFLOAT);
+    m_depthImage->createImage(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, {.width = swapchain->extent().width, .height = swapchain->extent().height, .depth = 1});
+    m_depthImage->createView(VK_IMAGE_ASPECT_DEPTH_BIT);
     createFramebuffer();
     createSemaphore();
 }
