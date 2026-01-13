@@ -1,33 +1,20 @@
 #include "render/Image.h"
 #include "render/VkUtils.h"
-#include <map>
 #include <vulkan/vulkan_core.h>
 
-const std::map<ImageType, VkImageUsageFlags> imageUsageFlags {
-    {ImageType::Color, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT},
-    {ImageType::Depth, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT},
-};
-
-const std::map<ImageType, VkImageAspectFlags> imageAspectFlags {
-    {ImageType::Color, VK_IMAGE_ASPECT_COLOR_BIT},
-    {ImageType::Depth, VK_IMAGE_ASPECT_DEPTH_BIT},
-};
-
-Image::Image(const VkContext* context, const VkFormat format, const ImageType type, const VkExtent3D extent)
+Image::Image(const VkContext* context)
  : m_context(context) {
-    createImage(format, extent, imageUsageFlags.at(type));
-    createView(format, imageAspectFlags.at(type));
 }
 
-Image::Image(const VkContext* context, const VkFormat format, const ImageType type, VkImage image)
+Image::Image(const VkContext* context, VkImage image)
  : m_context(context) {
+    m_externalImage = true;
     m_image = image;
-    createView(format, imageAspectFlags.at(type));
 }
 
 Image::~Image() {
     vkDestroyImageView(m_context->device(), m_view, nullptr);
-    if(m_memory == VK_NULL_HANDLE) return;
+    if(m_externalImage) return;
     vkDestroyImage(m_context->device(), m_image, nullptr);
     vkFreeMemory(m_context->device(), m_memory, nullptr);
 }
@@ -36,7 +23,11 @@ const VkImageView& Image::view() const {
     return m_view;
 }
 
-void Image::createImage(VkFormat format, VkExtent3D extent, VkImageUsageFlags usage) {
+const VkImage& Image::image() const {
+    return m_image;
+}
+
+void Image::createImage(const VkFormat format, const VkImageUsageFlags usage, const VkExtent3D extent) {
     VkImageCreateInfo imageInfo {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D,
@@ -66,7 +57,7 @@ void Image::createImage(VkFormat format, VkExtent3D extent, VkImageUsageFlags us
     validateVkResult(res, "vkBindImageMemory");
 }
 
-void Image::createView(VkFormat format, VkImageAspectFlags aspect) {
+void Image::createView(const VkFormat format, const VkImageAspectFlags aspect) {
     VkImageViewCreateInfo imageViewInfo {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .image = m_image,

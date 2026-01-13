@@ -8,9 +8,10 @@ ImageResources::ImageResources(const VkContext* context, const Swapchain* swapch
 m_context(context),
 m_swapchain(swapchain),
 m_imageView(imageView),
-m_depthImage(context, VK_FORMAT_D32_SFLOAT, ImageType::Depth, 
-    {.width = swapchain->extent().width, .height = swapchain->extent().height, .depth = 1}),
 m_renderPass(renderPass) {
+    m_depthImage = new Image(m_context);
+    m_depthImage->createImage(VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, {.width = swapchain->extent().width, .height = swapchain->extent().height, .depth = 1});
+    m_depthImage->createView(VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT);
     createFramebuffer();
     createSemaphore();
 }
@@ -18,6 +19,7 @@ m_renderPass(renderPass) {
 ImageResources::~ImageResources() {
     vkDestroySemaphore(m_context->device(), m_renderFinished, nullptr);
     vkDestroyFramebuffer(m_context->device(), m_framebuffer, nullptr);
+    delete m_depthImage;
 }
 
 const VkFramebuffer& ImageResources::framebuffer() const {
@@ -29,7 +31,7 @@ const VkSemaphore& ImageResources::renderFinishedSemaphore() const {
 }
 
 void ImageResources::createFramebuffer() {
-    VkImageView attachments[] = {m_imageView, m_depthImage.view()};
+    VkImageView attachments[] = {m_imageView, m_depthImage->view()};
     VkFramebufferCreateInfo framebufferInfo {
         .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
         .renderPass = m_renderPass,

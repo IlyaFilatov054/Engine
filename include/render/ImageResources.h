@@ -20,7 +20,7 @@ private:
     const VkRenderPass m_renderPass;
 
     VkFramebuffer m_framebuffer = VK_NULL_HANDLE;
-    Image m_depthImage;
+    Image* m_depthImage;
     VkSemaphore m_renderFinished = VK_NULL_HANDLE;
 
     void createFramebuffer();
