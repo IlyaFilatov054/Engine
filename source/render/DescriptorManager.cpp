@@ -3,21 +3,42 @@
 
 DescriptorManager::DescriptorManager(const VkContext* context) : m_context(context) {
     createLayouts();
-    createPool();
+    createPools();
     allocateDescriptors();
 }
 
 DescriptorManager::~DescriptorManager() {
-    vkDestroyDescriptorPool(m_context->device(), m_descriptorPool, nullptr);
-    vkDestroyDescriptorSetLayout(m_context->device(), m_descriptorSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(m_context->device(), m_cameraLayout, nullptr);
+    vkDestroyDescriptorSetLayout(m_context->device(), m_ssboLayout, nullptr);
+    vkDestroyDescriptorSetLayout(m_context->device(), m_texturesLayout, nullptr);
+
+    vkDestroyDescriptorPool(m_context->device(), m_uniformPool, nullptr);
+    vkDestroyDescriptorPool(m_context->device(), m_storagePool, nullptr);
+    vkDestroyDescriptorPool(m_context->device(), m_samplerPool, nullptr);
 }
 
-const VkDescriptorSet& DescriptorManager::cameraDescriptorSet() const {
-    return m_cameraDescriptorSet;
+const VkDescriptorSet& DescriptorManager::cameraSet() const {
+    return m_cameraSet;
 }
 
-const VkDescriptorSetLayout& DescriptorManager::layout() const {
-    return m_descriptorSetLayout;
+const VkDescriptorSetLayout& DescriptorManager::cameraLayout() const {
+    return m_cameraLayout;
+}
+
+const VkDescriptorSet& DescriptorManager::ssboSet() const {
+    return m_ssboSet;
+}
+
+const VkDescriptorSetLayout& DescriptorManager::ssboLayout() const {
+    return m_ssboLayout;
+}
+
+const VkDescriptorSet& DescriptorManager::texturesSet() const {
+    return m_texturesSet;
+}
+
+const VkDescriptorSetLayout& DescriptorManager::texturesLayout() const {
+    return m_texturesLayout;
 }
 
 void DescriptorManager::createLayouts() {
@@ -27,34 +48,100 @@ void DescriptorManager::createLayouts() {
         .descriptorCount = 1,
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
     };
-    VkDescriptorSetLayoutCreateInfo layoutInfo {
+    VkDescriptorSetLayoutCreateInfo cameraLayoutInfo {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
         .bindingCount = 1,
         .pBindings = &cameraBinding
     };
-    vkCreateDescriptorSetLayout(m_context->device(), &layoutInfo, nullptr, &m_descriptorSetLayout);   
+    vkCreateDescriptorSetLayout(m_context->device(), &cameraLayoutInfo, nullptr, &m_cameraLayout);   
+
+    VkDescriptorSetLayoutBinding ssboBinding {
+        .binding = 0,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
+    };
+    VkDescriptorSetLayoutCreateInfo ssboLayoutInfo {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .bindingCount = 1,
+        .pBindings = &ssboBinding
+    };
+    vkCreateDescriptorSetLayout(m_context->device(), &ssboLayoutInfo, nullptr, &m_ssboLayout);
+
+    VkDescriptorSetLayoutBinding texturesBinding {
+        .binding = 0,
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .descriptorCount = 16,
+        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
+    };
+    VkDescriptorSetLayoutCreateInfo texturesLayoutInfo {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .bindingCount = 1,
+        .pBindings = &texturesBinding
+    };
+    vkCreateDescriptorSetLayout(m_context->device(), &texturesLayoutInfo, nullptr, &m_texturesLayout);
 }
 
-void DescriptorManager::createPool() {
-    VkDescriptorPoolSize poolSize {
+void DescriptorManager::createPools() {
+    VkDescriptorPoolSize uniformPoolSize {
         .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         .descriptorCount = 1,
     };
-    VkDescriptorPoolCreateInfo poolInfo {
+    VkDescriptorPoolCreateInfo uniformPoolInfo {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .maxSets = 1,
         .poolSizeCount = 1,
-        .pPoolSizes = &poolSize,
+        .pPoolSizes = &uniformPoolSize,
     };
-    vkCreateDescriptorPool(m_context->device(), &poolInfo, nullptr, &m_descriptorPool);
+    vkCreateDescriptorPool(m_context->device(), &uniformPoolInfo, nullptr, &m_uniformPool);
+
+    VkDescriptorPoolSize storagePoolSize {
+        .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        .descriptorCount = 1,
+    };
+    VkDescriptorPoolCreateInfo storagePoolInfo {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .maxSets = 1,
+        .poolSizeCount = 1,
+        .pPoolSizes = &storagePoolSize,
+    };
+    vkCreateDescriptorPool(m_context->device(), &storagePoolInfo, nullptr, &m_storagePool);
+
+    VkDescriptorPoolSize samplerPoolSize {
+        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .descriptorCount = 16,
+    };
+    VkDescriptorPoolCreateInfo samplerPoolInfo {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .maxSets = 1,
+        .poolSizeCount = 1,
+        .pPoolSizes = &samplerPoolSize,
+    };
+    vkCreateDescriptorPool(m_context->device(), &samplerPoolInfo, nullptr, &m_samplerPool);
 }
 
 void DescriptorManager::allocateDescriptors() {
-    VkDescriptorSetAllocateInfo setAllocInfo {
+    VkDescriptorSetAllocateInfo cameraSetAllocInfo {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .descriptorPool = m_descriptorPool,
+        .descriptorPool = m_uniformPool,
         .descriptorSetCount = 1,
-        .pSetLayouts = &m_descriptorSetLayout
+        .pSetLayouts = &m_cameraLayout
     };
-    vkAllocateDescriptorSets(m_context->device(), &setAllocInfo, &m_cameraDescriptorSet);
+    vkAllocateDescriptorSets(m_context->device(), &cameraSetAllocInfo, &m_cameraSet);
+
+    VkDescriptorSetAllocateInfo ssboSetAllocInfo {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = m_storagePool,
+        .descriptorSetCount = 1,
+        .pSetLayouts = &m_ssboLayout
+    };
+    vkAllocateDescriptorSets(m_context->device(), &ssboSetAllocInfo, &m_ssboSet);
+
+    VkDescriptorSetAllocateInfo texturesSetAllocInfo {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = m_samplerPool,
+        .descriptorSetCount = 1,
+        .pSetLayouts = &m_texturesLayout
+    };
+    vkAllocateDescriptorSets(m_context->device(), &texturesSetAllocInfo, &m_texturesSet);
 }

@@ -1,6 +1,8 @@
 #include "render/Pipeline.h"
 #include "render/Vertex.h"
 #include "render/VkUtils.h"
+#include <cstdint>
+#include <vulkan/vulkan_core.h>
 
 Pipeline::Pipeline(const VkContext* context, const Swapchain* swapchain, 
     const VkRenderPass renderPass, const ShaderManager* shaderManager, 
@@ -109,11 +111,22 @@ Pipeline::Pipeline(const VkContext* context, const Swapchain* swapchain,
         .stencilTestEnable = VK_FALSE
     };
 
+    VkPushConstantRange pushRange {
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .offset = 0,
+        .size = sizeof(uint32_t),
+    };
+    VkDescriptorSetLayout layouts[] = {
+        m_descriptorManager->cameraLayout(), 
+        m_descriptorManager->ssboLayout(),
+        m_descriptorManager->texturesLayout()
+    };
     VkPipelineLayoutCreateInfo pipelaneLayoutInfo {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 1,
-        .pSetLayouts = &m_descriptorManager->layout(),
-        .pushConstantRangeCount = 0,
+        .setLayoutCount = 3,
+        .pSetLayouts = layouts,
+        .pushConstantRangeCount = 1,
+        .pPushConstantRanges = &pushRange
     };
 
     auto res = vkCreatePipelineLayout(m_context->device(), &pipelaneLayoutInfo, nullptr, &m_layout);

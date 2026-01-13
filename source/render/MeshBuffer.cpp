@@ -1,9 +1,10 @@
 #include "render/MeshBuffer.h"
 #include <cstdint>
 #include <vulkan/vulkan_core.h>
+#include "render/Vertex.h"
 
-MeshBuffer::MeshBuffer(const VkContext* context, const uint32_t size, const uint32_t indices) : 
-m_vertexBuffer(context, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+MeshBuffer::MeshBuffer(const VkContext* context, const uint32_t vertexCount, const uint32_t indices) : 
+m_vertexBuffer(context, sizeof(Vertex) * vertexCount, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
 m_indexBuffer(context, sizeof(uint32_t) * indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
 
 }

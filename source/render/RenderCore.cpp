@@ -1,15 +1,21 @@
 #include "render/RenderCore.h"
 #include <cmath>
 #include <cstdint>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/fwd.hpp>
+#include <glm/trigonometric.hpp>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 #include "render/DescriptorManager.h"
 #include "render/FrameManager.h"
 #include "render/MeshBuffer.h"
 #include "render/RenderPass.h"
+#include "render/ResourceManager.h"
 #include "render/ShaderManager.h"
 #include "render/Vertex.h"
 #include "core/Utils.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_context = context;
@@ -24,10 +30,17 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_renderPass = new RenderPass(m_context, m_swapchain, m_shaderManager, m_descriptorManager);
     m_frameManager = new FrameManager(m_context, m_swapchain, m_renderPass->renderPass());
     
-    m_buffer = new MeshBuffer(m_context, m_vertices.size() * sizeof(Vertex), m_indices.size());
-    m_buffer->setVertexData(m_vertices.data());
-    m_buffer->setIndexData(m_indices.data());
-    camera = new Camera(m_context, m_descriptorManager->cameraDescriptorSet());
+    m_resourceManager = new ResourceManager(m_context, m_descriptorManager->ssboSet(), m_descriptorManager->texturesSet());
+    m_resourceManager->addMesh(m_vertices, m_indices);
+    m_resourceManager->addTexture("/home/ilya/Pictures/Wallpapers/landscapes/Rainnight.jpg");
+    m_resourceManager->addRenderData();
+    glm::mat4 model = glm::mat4(1.0f);
+    m_resourceManager->renderData(0) = {
+        .model = model,
+    };
+    m_resourceManager->updateSsbo();
+
+    camera = new Camera(m_context, m_descriptorManager->cameraSet());
     camera->aspect = (float)m_swapchain->extent().width / (float)m_swapchain->extent().height;
 }
 
@@ -35,7 +48,7 @@ RenderCore::~RenderCore(){
     vkQueueWaitIdle(m_context->graphicsQueue());
     
     delete camera;
-    delete m_buffer;
+    delete m_resourceManager;
     delete m_shaderManager;
     delete m_frameManager;
     delete m_renderPass;
@@ -44,12 +57,18 @@ RenderCore::~RenderCore(){
 
 float c = 0;
 void RenderCore::drawFrame() {
-    c += 0.001f;
+    c += 0.0001f;
     //camera->position.y += 5 * std::sin(c);
     camera->position.x = 4 * std::cos(c);
     camera->position.z = 4 * std::sin(c);
-    camera->position.y = 4 * std::sin(0.333f * c);
+    //camera->position.y = 4 * std::sin(0.333f * c);
     camera->update();
+
+    auto& model = m_resourceManager->renderData(0).model;
+    model = glm::translate(glm::mat4(1.0f), {0.0f, std::sin(c), 0.0f});
+    model = glm::scale(glm::mat4(1.0f), {1.0f, 1.0f, std::sin(c * 5)});
+    m_resourceManager->renderData(0).textureIndex = 1;
+    m_resourceManager->updateSsbo();
 
     m_frameManager->currentFrameResources().waitFence();
 
@@ -112,11 +131,21 @@ void RenderCore::recordCommandBuffer(VkCommandBuffer buffer, const VkFramebuffer
     vkCmdBeginRenderPass(buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_renderPass->pipeline().pipeline());
     
-    vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_renderPass->pipeline().layout(), 0, 1, &m_descriptorManager->cameraDescriptorSet(), 0, nullptr);
+    VkDescriptorSet descriptors[] = {
+        m_descriptorManager->cameraSet(), 
+        m_descriptorManager->ssboSet(), 
+        m_descriptorManager->texturesSet()
+    };
+    vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_renderPass->pipeline().layout(), 0, 3, descriptors, 0, nullptr);
+    
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(buffer, 0, 1, &m_buffer->vertexBuffer(), offsets);
-    vkCmdBindIndexBuffer(buffer, m_buffer->indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(buffer, m_buffer->indicesCount(), 1, 0, 0, 0);
+    vkCmdBindVertexBuffers(buffer, 0, 1, &m_resourceManager->mesh(0)->vertexBuffer(), offsets);
+    vkCmdBindIndexBuffer(buffer, m_resourceManager->mesh(0)->indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+    
+    uint32_t pushConstants[] = {0};
+    vkCmdPushConstants(buffer, m_renderPass->pipeline().layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(uint32_t), pushConstants);
+    
+    vkCmdDrawIndexed(buffer, m_resourceManager->mesh(0)->indicesCount(), 1, 0, 0, 0);
     
     vkCmdEndRenderPass(buffer);
     vkEndCommandBuffer(buffer);

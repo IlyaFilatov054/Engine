@@ -22,6 +22,10 @@ foreach(SHADER ${SHADERS})
     file(COPY ${SHADER} DESTINATION ${CMAKE_BINARY_DIR}/shaders)
 endforeach(SHADER ${SHADERS})
 
+file(GLOB TEXTURES ${PROJECT_SOURCE_DIR}/textures/*)
+foreach(TEXTURE ${TEXTURES})
+    file(COPY ${TEXTURE} DESTINATION ${CMAKE_BINARY_DIR}/textures)
+endforeach(TEXTURE ${TEXTURES})
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 

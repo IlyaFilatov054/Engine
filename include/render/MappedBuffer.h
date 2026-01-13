@@ -4,7 +4,7 @@
 class MappedBuffer : public Buffer {
 public:
     MappedBuffer(const VkContext* context, uint32_t size, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryFlags);
-    ~MappedBuffer() override = default;
+    virtual ~MappedBuffer() override = default;
 
     void setData(void* data) override;
 

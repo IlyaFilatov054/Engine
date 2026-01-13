@@ -3,6 +3,7 @@
 #include "render/DescriptorManager.h"
 #include "render/FrameManager.h"
 #include "render/RenderPass.h"
+#include "render/ResourceManager.h"
 #include "render/ShaderManager.h"
 #include "render/VkContext.h"
 #include "render/Swapchain.h"
@@ -28,17 +29,17 @@ private:
     ShaderManager* m_shaderManager = nullptr;
     FrameManager* m_frameManager = nullptr;
     DescriptorManager* m_descriptorManager = nullptr;
-
-    [[deprecated]] MeshBuffer* m_buffer = nullptr; 
+    ResourceManager* m_resourceManager = nullptr;
+ 
     [[deprecated]] std::vector<Vertex> m_vertices {
-        Vertex{.position = {-1.0f, -1.0f, -1.0f}, .color = {1.0f, 0.0f, 0.0f, 1.0f}},
-        Vertex{.position = {1.0f, -1.0f, -1.0f}, .color = {0.0f, 1.0f, 0.0f, 1.0f}},
-        Vertex{.position = {1.0f, 1.0f, -1.0f}, .color = {0.0f, 0.0f, 1.0f, 1.0f}},
-        Vertex{.position = {-1.0f, 1.0f, -1.0f}, .color = {1.0f, 1.0f, 1.0f, 1.0f}},
-        Vertex{.position = {-1.0f, -1.0f, 1.0f}, .color = {1.0f, 0.0f, 0.0f, 1.0f}},
-        Vertex{.position = {1.0f, -1.0f, 1.0f}, .color = {0.0f, 1.0f, 0.0f, 1.0f}},
-        Vertex{.position = {1.0f, 1.0f, 1.0f}, .color = {0.0f, 0.0f, 1.0f, 1.0f}},
-        Vertex{.position = {-1.0f, 1.0f, 1.0f}, .color = {1.0f, 1.0f, 1.0f, 1.0f}},
+        Vertex{.position = {-1.0f, -1.0f, -1.0f}, .color = {1.0f, 1.0f, 1.0f, 1.0f}, .uv = {0.0f, 0.0f}},
+        Vertex{.position = {1.0f, -1.0f, -1.0f}, .color = {1.0f, 1.0f, 1.0f, 1.0f}, .uv = {0.0f, 1.0f}},
+        Vertex{.position = {1.0f, 1.0f, -1.0f}, .color = {1.0f, 1.0f, 1.0f, 1.0f}, .uv = {1.0f, 0.0f}},
+        Vertex{.position = {-1.0f, 1.0f, -1.0f}, .color = {1.0f, 1.0f, 1.0f, 1.0f}, .uv = {1.0f, 1.0f}},
+        Vertex{.position = {-1.0f, -1.0f, 1.0f}, .color = {1.0f, 1.0f, 1.0f, 1.0f}, .uv = {0.0f, 0.0f}},
+        Vertex{.position = {1.0f, -1.0f, 1.0f}, .color = {1.0f, 1.0f, 1.0f, 1.0f}, .uv = {0.0f, 1.0f}},
+        Vertex{.position = {1.0f, 1.0f, 1.0f}, .color = {1.0f, 1.0f, 1.0f, 1.0f}, .uv = {1.0f, 0.0f}},
+        Vertex{.position = {-1.0f, 1.0f, 1.0f}, .color = {1.0f, 1.0f, 1.0f, 1.0f}, .uv = {1.0f, 1.0f}},
     };
     [[deprecated]] std::vector<uint32_t> m_indices {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
     [[deprecated]] Camera* camera = nullptr;

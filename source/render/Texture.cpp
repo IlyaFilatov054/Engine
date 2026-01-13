@@ -16,12 +16,12 @@ Texture::Texture(const VkContext* context, const char* path) : m_context(context
 
     VkDeviceSize imageSize = m_width * m_height * 4;
 
-    MappedBuffer stagingBuffer(context, imageSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    MappedBuffer stagingBuffer(context, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     stagingBuffer.setData(pixels);
     stbi_image_free(pixels);
 
     m_image = new Image(m_context, VK_FORMAT_R8G8B8A8_SRGB);
-    m_image->createImage(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, {(uint32_t)width, (uint32_t)height});
+    m_image->createImage(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, {(uint32_t)width, (uint32_t)height, 1});
     m_image->transitionLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     m_image->copyBufferToImage(&stagingBuffer);
     m_image->transitionLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -44,5 +44,14 @@ Texture::Texture(const VkContext* context, const char* path) : m_context(context
 }
 
 Texture::~Texture() {
+    vkDestroySampler(m_context->device(), m_sampler, nullptr);
     delete m_image;
+}
+
+const Image* Texture::image() const {
+    return m_image;
+}
+
+const VkSampler& Texture::sampler() const {
+    return m_sampler;
 }
