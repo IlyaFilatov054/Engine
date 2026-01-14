@@ -9,10 +9,7 @@ public:
     virtual ~MappedBuffer() override = default;
 
     void setData(void* data) const;
-    template<typename T>
-    T* getData(uint32_t index) const {
-        return reinterpret_cast<T*>((std::byte*)m_mappedMemory + index * sizeof(T));
-    }
+    
 private:
     void* m_mappedMemory;
 };
