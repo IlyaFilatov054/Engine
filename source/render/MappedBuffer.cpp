@@ -9,6 +9,7 @@ MappedBuffer::MappedBuffer(const VkContext* context, uint32_t size, VkBufferUsag
     validateVkResult(res, "vkMapMemory");
 }
 
-void MappedBuffer::setData(void* data) {
+void MappedBuffer::setData(void* data) const {
     memcpy(m_mappedMemory, data, m_size);
 }
+

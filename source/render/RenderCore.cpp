@@ -12,7 +12,6 @@
 #include "render/RenderPass.h"
 #include "render/ResourceManager.h"
 #include "render/ShaderManager.h"
-#include "render/Vertex.h"
 #include "core/Utils.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -34,11 +33,6 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_resourceManager->addMesh(m_vertices, m_indices);
     m_resourceManager->addTexture("/home/ilya/Pictures/Wallpapers/landscapes/Rainnight.jpg");
     m_resourceManager->addRenderData();
-    glm::mat4 model = glm::mat4(1.0f);
-    m_resourceManager->renderData(0) = {
-        .model = model,
-    };
-    m_resourceManager->updateSsbo();
 
     camera = new Camera(m_context, m_descriptorManager->cameraSet());
     camera->aspect = (float)m_swapchain->extent().width / (float)m_swapchain->extent().height;
@@ -64,11 +58,11 @@ void RenderCore::drawFrame() {
     //camera->position.y = 4 * std::sin(0.333f * c);
     camera->update();
 
-    auto& model = m_resourceManager->renderData(0).model;
+    auto& model = m_resourceManager->renderData(0)->model;
     model = glm::translate(glm::mat4(1.0f), {0.0f, std::sin(c), 0.0f});
     model = glm::scale(glm::mat4(1.0f), {1.0f, 1.0f, std::sin(c * 5)});
-    m_resourceManager->renderData(0).textureIndex = 1;
-    m_resourceManager->updateSsbo();
+    m_resourceManager->renderData(0)->textureIndex = 1;
+    m_resourceManager->flushSsbo();
 
     m_frameManager->currentFrameResources().waitFence();
 

@@ -12,9 +12,8 @@ public:
 
     const uint32_t size() const {return m_size;};
     virtual const VkBuffer& buffer() const = 0;
-    virtual void setData(void* data) = 0;
 
 protected:
-    const VkContext* m_context = nullptr;
+    const VkContext* m_context;
     const uint32_t m_size;
 };

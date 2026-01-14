@@ -1,14 +1,16 @@
 #pragma once
 
-#include "render/MappedBuffer.h"
 #include "render/MeshBuffer.h"
 #include "render/RenderObjectData.h"
+#include "render/StagedBuffer.h"
 #include "render/Texture.h"
 #include "render/Vertex.h"
 #include "render/VkContext.h"
 #include <cstdint>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+
+const uint32_t SSBO_SIZE = 1024;
 
 class ResourceManager {
 public:
@@ -18,11 +20,12 @@ public:
     uint32_t addTexture(const char* path);
     uint32_t addMesh(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
     uint32_t addRenderData();
-    void updateSsbo();
 
     Texture* texture(uint32_t index) const;
     MeshBuffer* mesh(uint32_t index) const;
-    RenderObjectData& renderData(uint32_t index);
+    RenderObjectData* renderData(uint32_t index);
+
+    void flushSsbo() const;
 private:
     const VkContext* m_context;
     const VkDescriptorSet m_ssboDescriptor;
@@ -30,7 +33,7 @@ private:
 
     std::vector<Texture*> m_textures;
     std::vector<MeshBuffer*> m_meshes;
-    std::vector<RenderObjectData> m_renderObjectsData;
 
-    MappedBuffer m_ssbo;
+    std::vector<RenderObjectData*> m_ssboData;
+    StagedBuffer m_ssbo;
 };

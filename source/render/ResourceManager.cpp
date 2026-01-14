@@ -1,22 +1,24 @@
 #include "render/ResourceManager.h"
-#include "render/MappedBuffer.h"
 #include "render/MeshBuffer.h"
+#include "render/RenderObjectData.h"
 #include "render/Texture.h"
+#include <algorithm>
 #include <cstdint>
+#include <glm/fwd.hpp>
+#include <iterator>
 #include <vulkan/vulkan_core.h>
 
 ResourceManager::ResourceManager(const VkContext* context, const VkDescriptorSet ssboDescriptor, const VkDescriptorSet textureDescriptor)
  : m_context(context),
- m_ssbo(m_context, 1024, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 
+ m_ssbo(m_context, SSBO_SIZE, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 
     VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT),
     m_ssboDescriptor(ssboDescriptor),
     m_textureDescriptor(textureDescriptor) {
     VkDescriptorBufferInfo bufferInfo {
         .buffer = m_ssbo.buffer(),
         .offset = 0,
-        .range = 1024,
+        .range = SSBO_SIZE,
     };
-
     VkWriteDescriptorSet write {
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .dstSet = m_ssboDescriptor,
@@ -86,12 +88,13 @@ uint32_t ResourceManager::addMesh(std::vector<Vertex>& vertices, std::vector<uin
 }
 
 uint32_t ResourceManager::addRenderData() {
-    m_renderObjectsData.emplace_back();
-    return m_renderObjectsData.size() - 1;
-}
-
-void ResourceManager::updateSsbo() {
-    m_ssbo.setData(m_renderObjectsData.data());
+    uint32_t index = m_ssboData.size();
+    auto data = m_ssbo.stagingBuffer().getData<RenderObjectData>(index);
+    data->textureIndex = 0;
+    data->model = glm::mat4(1.0f);
+    std::fill(std::begin(data->padding), std::end(data->padding), 0);
+    m_ssboData.push_back(data);
+    return index;
 }
 
 Texture* ResourceManager::texture(uint32_t index) const {
@@ -102,6 +105,10 @@ MeshBuffer* ResourceManager::mesh(uint32_t index) const {
     return m_meshes[index];
 }
 
-RenderObjectData& ResourceManager::renderData(uint32_t index) {
-    return m_renderObjectsData[index];
+RenderObjectData* ResourceManager::renderData(uint32_t index) {
+    return m_ssboData[index];
+}
+
+void ResourceManager::flushSsbo() const {
+    m_ssbo.flush();
 }

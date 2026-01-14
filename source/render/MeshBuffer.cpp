@@ -14,7 +14,8 @@ const VkBuffer& MeshBuffer::vertexBuffer() const {
 }
 
 void MeshBuffer::setVertexData(void* data) {
-    m_vertexBuffer.setData(data);
+    m_vertexBuffer.stagingBuffer().setData(data);
+    m_vertexBuffer.flush();
 }
 
 const VkBuffer& MeshBuffer::indexBuffer() const {
@@ -22,7 +23,8 @@ const VkBuffer& MeshBuffer::indexBuffer() const {
 }
 
 void MeshBuffer::setIndexData(void* data) {
-    m_indexBuffer.setData(data);
+    m_indexBuffer.stagingBuffer().setData(data);
+    m_indexBuffer.flush();
 }
 const uint32_t MeshBuffer::indexBufferSize() const {
     return m_indexBuffer.size();

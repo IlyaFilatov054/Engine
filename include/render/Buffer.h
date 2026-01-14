@@ -6,14 +6,12 @@
 #include "render/VkContext.h"
 #include "render/AbstractBuffer.h"
 
-class Buffer : public AbstractBuffer{
+class Buffer : public AbstractBuffer {
 public:
     Buffer(const VkContext* context, uint32_t size, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryFlags);
     virtual ~Buffer() override;
 
-    const VkBuffer& buffer() const override;
-    void setData(void* data) override {throw std::runtime_error("Can't set data to default buffer!");};
-    
+    const VkBuffer& buffer() const override;    
 protected:
     VkBuffer m_buffer;
     VkDeviceMemory m_memory;
