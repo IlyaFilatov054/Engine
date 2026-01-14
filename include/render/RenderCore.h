@@ -2,6 +2,8 @@
 #include "render/Camera.h"
 #include "render/DescriptorManager.h"
 #include "render/FrameManager.h"
+#include "render/FrameResources.h"
+#include "render/ImageResources.h"
 #include "render/RenderPass.h"
 #include "render/ResourceManager.h"
 #include "render/ShaderManager.h"
@@ -44,5 +46,5 @@ private:
     [[deprecated]] std::vector<uint32_t> m_indices {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
     [[deprecated]] Camera* camera = nullptr;
 
-    void recordCommandBuffer(VkCommandBuffer buffer, const VkFramebuffer framebuffer);
+    void recordCommandBuffer(const FrameResources& frameResources, const ImageResources& imageResources);
 };

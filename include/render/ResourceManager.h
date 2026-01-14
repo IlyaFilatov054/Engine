@@ -2,7 +2,6 @@
 
 #include "render/MeshBuffer.h"
 #include "render/RenderObjectData.h"
-#include "render/StagedBuffer.h"
 #include "render/Texture.h"
 #include "render/Vertex.h"
 #include "render/VkContext.h"
@@ -10,11 +9,9 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-const uint32_t SSBO_SIZE = 1024;
-
 class ResourceManager {
 public:
-    ResourceManager(const VkContext* context, const VkDescriptorSet ssboDescriptor, const VkDescriptorSet textureDescriptor);
+    ResourceManager(const VkContext* context, const VkDescriptorSet textureDescriptor);
     ~ResourceManager();
 
     uint32_t addTexture(const char* path);
@@ -23,17 +20,14 @@ public:
 
     Texture* texture(uint32_t index) const;
     MeshBuffer* mesh(uint32_t index) const;
-    RenderObjectData* renderData(uint32_t index);
-
-    void flushSsbo() const;
+    RenderObjectData& renderData(uint32_t index);
+    void* renderData();
 private:
     const VkContext* m_context;
-    const VkDescriptorSet m_ssboDescriptor;
     const VkDescriptorSet m_textureDescriptor;
 
     std::vector<Texture*> m_textures;
     std::vector<MeshBuffer*> m_meshes;
 
-    std::vector<RenderObjectData*> m_ssboData;
-    StagedBuffer m_ssbo;
+    std::vector<RenderObjectData> m_ssboData;
 };

@@ -4,7 +4,6 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/fwd.hpp>
 #include <glm/trigonometric.hpp>
-#include <vector>
 #include <vulkan/vulkan_core.h>
 #include "render/DescriptorManager.h"
 #include "render/FrameManager.h"
@@ -27,12 +26,13 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_shaderManager->createShaderModule(readFile("shaders/main.frag.spv"), "frag");
 
     m_renderPass = new RenderPass(m_context, m_swapchain, m_shaderManager, m_descriptorManager);
-    m_frameManager = new FrameManager(m_context, m_swapchain, m_renderPass->renderPass());
+    m_frameManager = new FrameManager(m_context, m_swapchain, m_renderPass->renderPass(), m_descriptorManager);
     
-    m_resourceManager = new ResourceManager(m_context, m_descriptorManager->ssboSet(), m_descriptorManager->texturesSet());
+    m_resourceManager = new ResourceManager(m_context, m_descriptorManager->texturesSet());
     m_resourceManager->addMesh(m_vertices, m_indices);
     m_resourceManager->addTexture("/home/ilya/Pictures/Wallpapers/landscapes/Rainnight.jpg");
     m_resourceManager->addRenderData();
+    m_resourceManager->renderData(0).textureIndex = 0;
 
     camera = new Camera(m_context, m_descriptorManager->cameraSet());
     camera->aspect = (float)m_swapchain->extent().width / (float)m_swapchain->extent().height;
@@ -58,11 +58,9 @@ void RenderCore::drawFrame() {
     //camera->position.y = 4 * std::sin(0.333f * c);
     camera->update();
 
-    auto& model = m_resourceManager->renderData(0)->model;
+    auto& model = m_resourceManager->renderData(0).model;
     model = glm::translate(glm::mat4(1.0f), {0.0f, std::sin(c), 0.0f});
     model = glm::scale(glm::mat4(1.0f), {1.0f, 1.0f, std::sin(c * 5)});
-    m_resourceManager->renderData(0)->textureIndex = 1;
-    m_resourceManager->flushSsbo();
 
     m_frameManager->currentFrameResources().waitFence();
 
@@ -77,7 +75,7 @@ void RenderCore::drawFrame() {
     //validateVkResult(res, "vkAcquireNextImageKHR");
     
     vkResetCommandBuffer(m_frameManager->currentFrameResources().commandBuffer(), 0);
-    recordCommandBuffer(m_frameManager->currentFrameResources().commandBuffer(), m_frameManager->imageResources(imageIndex).framebuffer());
+    recordCommandBuffer(m_frameManager->currentFrameResources(), m_frameManager->imageResources(imageIndex));
 
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSubmitInfo submitInfo {
@@ -105,42 +103,44 @@ void RenderCore::drawFrame() {
     m_frameManager->nextFrame();
 }
 
-void RenderCore::recordCommandBuffer(VkCommandBuffer buffer, const VkFramebuffer framebuffer) {
+void RenderCore::recordCommandBuffer(const FrameResources& frameResources, const ImageResources& imageResources) {
     VkCommandBufferBeginInfo beginInfo {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
     };
-    vkBeginCommandBuffer(buffer, &beginInfo);
+    vkBeginCommandBuffer(frameResources.commandBuffer(), &beginInfo);
     
+    frameResources.setSsboData(frameResources.commandBuffer(), m_resourceManager->renderData());
+
     VkClearValue clearValues[2];
     clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
     clearValues[1].depthStencil = {1.0f, 0};
     VkRenderPassBeginInfo renderPassInfo {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
         .renderPass = m_renderPass->renderPass(),
-        .framebuffer = framebuffer,
+        .framebuffer = imageResources.framebuffer(),
         .renderArea = {.offset = {0, 0}, .extent = m_swapchain->extent()},
         .clearValueCount = 2,
         .pClearValues = clearValues
     };
-    vkCmdBeginRenderPass(buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_renderPass->pipeline().pipeline());
+    vkCmdBeginRenderPass(frameResources.commandBuffer(), &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(frameResources.commandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_renderPass->pipeline().pipeline());
     
     VkDescriptorSet descriptors[] = {
         m_descriptorManager->cameraSet(), 
-        m_descriptorManager->ssboSet(), 
+        frameResources.ssboDescriptor(),
         m_descriptorManager->texturesSet()
     };
-    vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_renderPass->pipeline().layout(), 0, 3, descriptors, 0, nullptr);
+    vkCmdBindDescriptorSets(frameResources.commandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_renderPass->pipeline().layout(), 0, 3, descriptors, 0, nullptr);
     
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(buffer, 0, 1, &m_resourceManager->mesh(0)->vertexBuffer(), offsets);
-    vkCmdBindIndexBuffer(buffer, m_resourceManager->mesh(0)->indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindVertexBuffers(frameResources.commandBuffer(), 0, 1, &m_resourceManager->mesh(0)->vertexBuffer(), offsets);
+    vkCmdBindIndexBuffer(frameResources.commandBuffer(), m_resourceManager->mesh(0)->indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
     
     uint32_t pushConstants[] = {0};
-    vkCmdPushConstants(buffer, m_renderPass->pipeline().layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(uint32_t), pushConstants);
+    vkCmdPushConstants(frameResources.commandBuffer(), m_renderPass->pipeline().layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(uint32_t), pushConstants);
     
-    vkCmdDrawIndexed(buffer, m_resourceManager->mesh(0)->indicesCount(), 1, 0, 0, 0);
+    vkCmdDrawIndexed(frameResources.commandBuffer(), m_resourceManager->mesh(0)->indicesCount(), 1, 0, 0, 0);
     
-    vkCmdEndRenderPass(buffer);
-    vkEndCommandBuffer(buffer);
+    vkCmdEndRenderPass(frameResources.commandBuffer());
+    vkEndCommandBuffer(frameResources.commandBuffer());
 }

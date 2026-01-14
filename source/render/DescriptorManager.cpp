@@ -4,7 +4,8 @@
 DescriptorManager::DescriptorManager(const VkContext* context) : m_context(context) {
     createLayouts();
     createPools();
-    allocateDescriptors();
+    allocateCameraDescriptor();
+    allocateTexturesDescriptor();
 }
 
 DescriptorManager::~DescriptorManager() {
@@ -23,10 +24,6 @@ const VkDescriptorSet& DescriptorManager::cameraSet() const {
 
 const VkDescriptorSetLayout& DescriptorManager::cameraLayout() const {
     return m_cameraLayout;
-}
-
-const VkDescriptorSet& DescriptorManager::ssboSet() const {
-    return m_ssboSet;
 }
 
 const VkDescriptorSetLayout& DescriptorManager::ssboLayout() const {
@@ -97,11 +94,11 @@ void DescriptorManager::createPools() {
 
     VkDescriptorPoolSize storagePoolSize {
         .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        .descriptorCount = 1,
+        .descriptorCount = 8,
     };
     VkDescriptorPoolCreateInfo storagePoolInfo {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        .maxSets = 1,
+        .maxSets = 8,
         .poolSizeCount = 1,
         .pPoolSizes = &storagePoolSize,
     };
@@ -120,7 +117,19 @@ void DescriptorManager::createPools() {
     vkCreateDescriptorPool(m_context->device(), &samplerPoolInfo, nullptr, &m_samplerPool);
 }
 
-void DescriptorManager::allocateDescriptors() {
+VkDescriptorSet DescriptorManager::allocateStorageDescriptor() const {
+    VkDescriptorSet ssboSet = VK_NULL_HANDLE;
+    VkDescriptorSetAllocateInfo ssboSetAllocInfo {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = m_storagePool,
+        .descriptorSetCount = 1,
+        .pSetLayouts = &m_ssboLayout
+    };
+    vkAllocateDescriptorSets(m_context->device(), &ssboSetAllocInfo, &ssboSet);
+    return ssboSet;
+}
+
+void DescriptorManager::allocateCameraDescriptor() {
     VkDescriptorSetAllocateInfo cameraSetAllocInfo {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
         .descriptorPool = m_uniformPool,
@@ -128,15 +137,9 @@ void DescriptorManager::allocateDescriptors() {
         .pSetLayouts = &m_cameraLayout
     };
     vkAllocateDescriptorSets(m_context->device(), &cameraSetAllocInfo, &m_cameraSet);
+}
 
-    VkDescriptorSetAllocateInfo ssboSetAllocInfo {
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .descriptorPool = m_storagePool,
-        .descriptorSetCount = 1,
-        .pSetLayouts = &m_ssboLayout
-    };
-    vkAllocateDescriptorSets(m_context->device(), &ssboSetAllocInfo, &m_ssboSet);
-
+void DescriptorManager::allocateTexturesDescriptor() {
     VkDescriptorSetAllocateInfo texturesSetAllocInfo {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
         .descriptorPool = m_samplerPool,

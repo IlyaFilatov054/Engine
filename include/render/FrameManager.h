@@ -1,5 +1,6 @@
 #pragma once
 
+#include "render/DescriptorManager.h"
 #include "render/FrameResources.h"
 #include "render/ImageResources.h"
 #include "render/Swapchain.h"
@@ -9,7 +10,8 @@
 
 class FrameManager {
 public:
-    FrameManager(const VkContext* context, const Swapchain* swapchain, const VkRenderPass renderPass);
+    FrameManager(const VkContext* context, const Swapchain* swapchain, 
+        const VkRenderPass renderPass, const DescriptorManager* descriptorManager);
     ~FrameManager();
 
     void nextFrame();

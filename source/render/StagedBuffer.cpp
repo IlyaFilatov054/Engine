@@ -29,17 +29,25 @@ const MappedBuffer& StagedBuffer::stagingBuffer() const {
     return m_stagingBuffer;
 }
 
-void StagedBuffer::flush(uint32_t offset, uint32_t size) const {
+void StagedBuffer::flushNow(uint32_t offset, uint32_t size) const {
     executeOnGpu(m_context, [&](const VkCommandBuffer commandBuffer) {
-        VkBufferCopy copyRegion {
+        flush(offset, size, commandBuffer);
+    });
+}
+
+void StagedBuffer::flushNow() const {
+    flushNow(0, m_size);
+}
+
+void StagedBuffer::flush(uint32_t offset, uint32_t size, const VkCommandBuffer& commandBuffer) const {
+    VkBufferCopy copyRegion {
             .srcOffset = offset,
             .dstOffset = offset,
             .size = size
         };
-        vkCmdCopyBuffer(commandBuffer, m_stagingBuffer.buffer(), m_buffer.buffer(), 1, &copyRegion);
-    });
+    vkCmdCopyBuffer(commandBuffer, m_stagingBuffer.buffer(), m_buffer.buffer(), 1, &copyRegion);
 }
 
-void StagedBuffer::flush() const {
-    flush(0, m_size);
+void StagedBuffer::flush(const VkCommandBuffer& commandBuffer) const {
+    flush(0, m_size, commandBuffer);
 }

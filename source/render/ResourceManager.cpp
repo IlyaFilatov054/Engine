@@ -8,26 +8,9 @@
 #include <iterator>
 #include <vulkan/vulkan_core.h>
 
-ResourceManager::ResourceManager(const VkContext* context, const VkDescriptorSet ssboDescriptor, const VkDescriptorSet textureDescriptor)
- : m_context(context),
- m_ssbo(m_context, SSBO_SIZE, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 
-    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT),
-    m_ssboDescriptor(ssboDescriptor),
+ResourceManager::ResourceManager(const VkContext* context, const VkDescriptorSet textureDescriptor)
+  : m_context(context),
     m_textureDescriptor(textureDescriptor) {
-    VkDescriptorBufferInfo bufferInfo {
-        .buffer = m_ssbo.buffer(),
-        .offset = 0,
-        .range = SSBO_SIZE,
-    };
-    VkWriteDescriptorSet write {
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstSet = m_ssboDescriptor,
-        .dstBinding = 0,
-        .descriptorCount = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        .pBufferInfo = &bufferInfo,
-    };
-    vkUpdateDescriptorSets(m_context->device(), 1, &write, 0, nullptr);
 
     addTexture("textures/Missing_Texture.png");
     for(uint32_t i = 0; i < 16; i++){
@@ -88,13 +71,16 @@ uint32_t ResourceManager::addMesh(std::vector<Vertex>& vertices, std::vector<uin
 }
 
 uint32_t ResourceManager::addRenderData() {
-    uint32_t index = m_ssboData.size();
-    auto data = m_ssbo.stagingBuffer().getData<RenderObjectData>(index);
-    data->textureIndex = 0;
-    data->model = glm::mat4(1.0f);
-    std::fill(std::begin(data->padding), std::end(data->padding), 0);
-    m_ssboData.push_back(data);
-    return index;
+    // uint32_t index = m_ssboData.size();
+    // auto data = m_ssbo.stagingBuffer().getData<RenderObjectData>(index);
+    // data->textureIndex = 0;
+    // data->model = glm::mat4(1.0f);
+    // std::fill(std::begin(data->padding), std::end(data->padding), 0);
+    m_ssboData.emplace_back();
+    m_ssboData.back().textureIndex = 0;
+    m_ssboData.back().model = glm::mat4(1.0f);
+    std::fill(std::begin(m_ssboData.back().padding), std::end(m_ssboData.back().padding), 0);
+    return m_ssboData.size() - 1;
 }
 
 Texture* ResourceManager::texture(uint32_t index) const {
@@ -105,10 +91,10 @@ MeshBuffer* ResourceManager::mesh(uint32_t index) const {
     return m_meshes[index];
 }
 
-RenderObjectData* ResourceManager::renderData(uint32_t index) {
+RenderObjectData& ResourceManager::renderData(uint32_t index) {
     return m_ssboData[index];
 }
 
-void ResourceManager::flushSsbo() const {
-    m_ssbo.flush();
+void* ResourceManager::renderData() {
+    return m_ssboData.data();
 }

@@ -12,8 +12,10 @@ public:
 
     const VkBuffer& buffer() const override;
     const MappedBuffer& stagingBuffer() const;
-    void flush(uint32_t offset, uint32_t size) const;
-    void flush() const;
+    void flushNow(uint32_t offset, uint32_t size) const;
+    void flushNow() const;
+    void flush(uint32_t offset, uint32_t size, const VkCommandBuffer& commandBuffer) const;
+    void flush(const VkCommandBuffer& commandBuffer) const;
     
 private:
     Buffer m_buffer;
