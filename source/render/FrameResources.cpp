@@ -1,4 +1,5 @@
 #include "render/FrameResources.h"
+#include <cstdint>
 #include <vulkan/vulkan_core.h>
 #include "render/VkUtils.h"
 
@@ -91,7 +92,7 @@ const VkDescriptorSet& FrameResources::ssboDescriptor() const {
     return m_ssboDescriptor;
 }
 
-void FrameResources::setSsboData(const VkCommandBuffer& commandBuffer, void* data) const {
-    m_ssbo.stagingBuffer().setData(data);
+void FrameResources::setSsboData(const VkCommandBuffer& commandBuffer, void* data, uint32_t size) const {
+    m_ssbo.stagingBuffer().setData(data, size, 0);
     m_ssbo.flush(commandBuffer);
 }

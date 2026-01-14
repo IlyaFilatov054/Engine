@@ -4,6 +4,7 @@
 #include "render/FrameManager.h"
 #include "render/FrameResources.h"
 #include "render/ImageResources.h"
+#include "render/RenderObject.h"
 #include "render/RenderPass.h"
 #include "render/ResourceManager.h"
 #include "render/ShaderManager.h"
@@ -33,6 +34,7 @@ private:
     DescriptorManager* m_descriptorManager = nullptr;
     ResourceManager* m_resourceManager = nullptr;
  
+    std::vector<RenderObject> m_renderObjects;
     [[deprecated]] std::vector<Vertex> m_vertices {
         Vertex{.position = {-1.0f, -1.0f, -1.0f}, .color = {1.0f, 1.0f, 1.0f, 1.0f}, .uv = {0.0f, 0.0f}},
         Vertex{.position = {1.0f, -1.0f, -1.0f}, .color = {1.0f, 1.0f, 1.0f, 1.0f}, .uv = {0.0f, 1.0f}},

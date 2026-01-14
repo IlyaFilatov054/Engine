@@ -9,7 +9,7 @@ public:
     virtual ~MappedBuffer() override = default;
 
     void setData(void* data) const;
-    
+    void setData(void* data, uint32_t size, uint32_t offset) const;
 private:
     void* m_mappedMemory;
 };

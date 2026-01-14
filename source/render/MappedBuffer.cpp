@@ -1,6 +1,8 @@
 #include "render/MappedBuffer.h"
 #include "render/Buffer.h"
+#include <cstddef>
 #include <cstring>
+#include <vulkan/vulkan_core.h>
 #include "render/VkUtils.h"
 
 MappedBuffer::MappedBuffer(const VkContext* context, uint32_t size, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryFlags) 
@@ -10,6 +12,9 @@ MappedBuffer::MappedBuffer(const VkContext* context, uint32_t size, VkBufferUsag
 }
 
 void MappedBuffer::setData(void* data) const {
-    memcpy(m_mappedMemory, data, m_size);
+    setData(data, m_size, 0);
 }
 
+void MappedBuffer::setData(void* data, uint32_t size, uint32_t offset) const {
+    memcpy(reinterpret_cast<std::byte*>(m_mappedMemory) + offset, data, size);
+}

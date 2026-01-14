@@ -21,6 +21,7 @@ public:
     Texture* texture(uint32_t index) const;
     MeshBuffer* mesh(uint32_t index) const;
     RenderObjectData& renderData(uint32_t index);
+    const uint32_t renderDataSize() const;
     void* renderData();
 private:
     const VkContext* m_context;

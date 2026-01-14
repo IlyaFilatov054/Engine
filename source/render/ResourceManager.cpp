@@ -95,6 +95,10 @@ RenderObjectData& ResourceManager::renderData(uint32_t index) {
     return m_ssboData[index];
 }
 
+const uint32_t ResourceManager::renderDataSize() const {
+    return m_ssboData.size() * sizeof(RenderObjectData);
+}
+
 void* ResourceManager::renderData() {
     return m_ssboData.data();
 }

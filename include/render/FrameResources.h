@@ -5,7 +5,7 @@
 #include <vulkan/vulkan_core.h>
 #include "render/StagedBuffer.h"
 
-const uint32_t SSBO_SIZE = 1024;
+const uint32_t SSBO_SIZE = 1024 * 1024;
 
 class FrameResources {
 public:
@@ -17,7 +17,7 @@ public:
     const VkFence& submitFence() const;
     const void waitFence() const;
     const VkDescriptorSet& ssboDescriptor() const;
-    void setSsboData(const VkCommandBuffer& commandBuffer, void* data) const;
+    void setSsboData(const VkCommandBuffer& commandBuffer, void* data, uint32_t size) const;
 private:
     const VkContext* m_context;
     
