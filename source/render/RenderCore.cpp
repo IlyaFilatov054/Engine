@@ -26,11 +26,36 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_shaderManager = new ShaderManager(m_context);
     m_shaderManager->createShaderModule(readFile("shaders/main.vert.spv"), "vert");
     m_shaderManager->createShaderModule(readFile("shaders/main.frag.spv"), "frag");
-
-    m_renderPass = new RenderPass(m_context, m_swapchain, m_shaderManager, m_descriptorManager);
-    m_frameManager = new FrameManager(m_context, m_swapchain, m_renderPass->renderPass(), m_descriptorManager);
     
-    m_resourceManager = new ResourceManager(m_context, m_descriptorManager->texturesSet());
+    m_frameManager = new FrameManager(m_context, m_swapchain->images().size());
+    std::vector<VkDescriptorSetLayoutBinding> ssboBindings = {
+    VkDescriptorSetLayoutBinding {
+            .binding = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
+        },
+    };
+    uint32_t ssboLayout = m_descriptorManager->createLayout(ssboBindings);
+    const auto sets = m_descriptorManager->allocateSets(ssboLayout, m_frameManager->maxFrames());
+    m_frameManager->createFrameResources(sets);
+    m_frameManager->createImageResources();
+    uint32_t colorAttachment = m_frameManager->addImageAttachments(m_swapchain->images());
+    uint32_t depthAttachment = m_frameManager->addImageAttachment(VK_FORMAT_D32_SFLOAT,
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        {m_swapchain->extent().width, m_swapchain->extent().height, 1},
+        VK_IMAGE_ASPECT_DEPTH_BIT);
+    
+    std::vector<VkDescriptorSetLayoutBinding> textureBindings = {
+        VkDescriptorSetLayoutBinding {
+            .binding = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = 16,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
+        },
+    };
+    uint32_t texturesLayout = m_descriptorManager->createLayout(textureBindings);
+    m_resourceManager = new ResourceManager(m_context, m_descriptorManager->allocateSet(texturesLayout));
     m_resourceManager->addMesh(m_vertices, m_indices);
     m_resourceManager->addTexture("/home/ilya/Pictures/Wallpapers/landscapes/Rainnight.jpg");
     
@@ -51,8 +76,24 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         m_renderObjects.push_back({.mesh = 0, .renderData = id});
     }
 
-    camera = new Camera(m_context, m_descriptorManager->cameraSet());
+    std::vector<VkDescriptorSetLayoutBinding> cameraBindings = {
+        VkDescriptorSetLayoutBinding {
+            .binding = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
+        },
+    };
+    uint32_t cameraLayout = m_descriptorManager->createLayout(cameraBindings);
+    camera = new Camera(m_context, m_descriptorManager->allocateSet(cameraLayout));
     camera->aspect = (float)m_swapchain->extent().width / (float)m_swapchain->extent().height;
+
+    std::vector<VkDescriptorSetLayout> usedLayouts = {
+        m_descriptorManager->layout(cameraLayout),
+        m_descriptorManager->layout(ssboLayout),
+        m_descriptorManager->layout(texturesLayout),
+    };
+    m_renderPass = new RenderPass(m_context, m_swapchain, m_shaderManager, usedLayouts);
 }
 
 RenderCore::~RenderCore(){
@@ -139,9 +180,9 @@ void RenderCore::recordCommandBuffer(const FrameResources& frameResources, const
     vkCmdBindPipeline(frameResources.commandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_renderPass->pipeline().pipeline());
     
     VkDescriptorSet descriptors[] = {
-        m_descriptorManager->cameraSet(), 
+        camera->descriptorSet(), 
         frameResources.ssboDescriptor(),
-        m_descriptorManager->texturesSet()
+        m_resourceManager->texturesDescriptor(),
     };
     vkCmdBindDescriptorSets(frameResources.commandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_renderPass->pipeline().layout(), 0, 3, descriptors, 0, nullptr);
 

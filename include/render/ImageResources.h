@@ -1,28 +1,32 @@
 #pragma once
 
 #include "render/Image.h"
-#include "render/Swapchain.h"
 #include "render/VkContext.h"
+#include <cstdint>
+#include <vector>
 #include <vulkan/vulkan_core.h>
+
+struct ImageAttachment {  
+    Image* image;
+    bool external;
+};
 
 class ImageResources {
 public:
-    ImageResources(const VkContext* context, const Swapchain* swapchain, const VkImageView imageView, const VkRenderPass renderPass);
+    ImageResources(const VkContext* context);
     ~ImageResources();
 
     const VkFramebuffer& framebuffer() const;
     const VkSemaphore& renderFinishedSemaphore() const;
 
+    uint32_t addAttachment(Image* attachment);
+    uint32_t addAttachment(VkFormat format, VkImageUsageFlags usage, VkExtent3D extent, VkImageAspectFlags aspect);
+
 private:
     const VkContext* m_context;
-    const Swapchain* m_swapchain;
-    const VkImageView m_imageView;
-    const VkRenderPass m_renderPass;
 
-    VkFramebuffer m_framebuffer = VK_NULL_HANDLE;
-    Image* m_depthImage;
+    std::vector<ImageAttachment> m_attachments;
     VkSemaphore m_renderFinished = VK_NULL_HANDLE;
 
-    void createFramebuffer();
     void createSemaphore();
 };

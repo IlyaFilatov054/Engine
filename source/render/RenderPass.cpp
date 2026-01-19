@@ -3,7 +3,7 @@
 #include "render/VkUtils.h"
 
 RenderPass::RenderPass(const VkContext* context, const Swapchain* swapchain,
-    const ShaderManager* shaderManager, const DescriptorManager* descriptorManager) 
+    const ShaderManager* shaderManager, const std::vector<VkDescriptorSetLayout> usedLayouts) 
 : m_context(context), m_swapchain(swapchain) {
     VkAttachmentDescription colorAttachment {
         .format = m_swapchain->format().format,
@@ -65,7 +65,7 @@ RenderPass::RenderPass(const VkContext* context, const Swapchain* swapchain,
     auto res = vkCreateRenderPass(m_context->device(), &renderPassCreateInfo, nullptr, &m_renderPass);
     validateVkResult(res, "vkCreateRenderPass");
 
-    m_pipeline = new Pipeline(m_context, m_swapchain, m_renderPass, shaderManager, descriptorManager);
+    m_pipeline = new Pipeline(m_context, m_swapchain, m_renderPass, shaderManager, usedLayouts);
 };
 
 RenderPass::~RenderPass() {

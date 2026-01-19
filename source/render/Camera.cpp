@@ -36,3 +36,7 @@ void Camera::update() {
     glm::mat4 data[] = {m_view, m_projection};
     m_buffer.setData(data);
 }
+
+const VkDescriptorSet& Camera::descriptorSet() const {
+    return m_descriptorSet;
+}

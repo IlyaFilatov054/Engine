@@ -6,12 +6,11 @@
 
 Pipeline::Pipeline(const VkContext* context, const Swapchain* swapchain, 
     const VkRenderPass renderPass, const ShaderManager* shaderManager, 
-    const DescriptorManager* descriptorManager)
+    const std::vector<VkDescriptorSetLayout> usedLayouts)
 : m_context(context),
   m_swapchain(swapchain),  
   m_renderPass(renderPass), 
-  m_shaderManager(shaderManager), 
-  m_descriptorManager(descriptorManager){
+  m_shaderManager(shaderManager) {
 
     auto vertexShader = m_shaderManager->getShaderModule("vert");
     auto fragmentShader = m_shaderManager->getShaderModule("frag");
@@ -116,15 +115,11 @@ Pipeline::Pipeline(const VkContext* context, const Swapchain* swapchain,
         .offset = 0,
         .size = sizeof(uint32_t),
     };
-    VkDescriptorSetLayout layouts[] = {
-        m_descriptorManager->cameraLayout(), 
-        m_descriptorManager->ssboLayout(),
-        m_descriptorManager->texturesLayout()
-    };
+
     VkPipelineLayoutCreateInfo pipelaneLayoutInfo {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 3,
-        .pSetLayouts = layouts,
+        .setLayoutCount = static_cast<uint32_t>(usedLayouts.size()),
+        .pSetLayouts = usedLayouts.data(),
         .pushConstantRangeCount = 1,
         .pPushConstantRanges = &pushRange
     };

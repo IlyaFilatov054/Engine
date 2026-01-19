@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/fwd.hpp>
+#include <vulkan/vulkan_core.h>
 #include "render/MappedBuffer.h"
 #include "render/VkContext.h"
 
@@ -19,6 +20,8 @@ public:
     float far{100.0f};
 
     void update();
+
+    const VkDescriptorSet& descriptorSet() const;
 private:
     glm::mat4 m_view;
     glm::mat4 m_projection;

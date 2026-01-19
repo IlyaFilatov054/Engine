@@ -10,7 +10,7 @@
 class RenderPass {
 public:
     RenderPass(const VkContext* context, const Swapchain* swapchain, 
-        const ShaderManager* shaderManager, const DescriptorManager* descriptorManager);
+        const ShaderManager* shaderManager, const std::vector<VkDescriptorSetLayout> usedLayouts);
     ~RenderPass();
 
     const VkRenderPass& renderPass() const;

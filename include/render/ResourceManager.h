@@ -23,6 +23,7 @@ public:
     RenderObjectData& renderData(uint32_t index);
     const uint32_t renderDataSize() const;
     void* renderData();
+    const VkDescriptorSet& texturesDescriptor() const;
 private:
     const VkContext* m_context;
     const VkDescriptorSet m_textureDescriptor;
