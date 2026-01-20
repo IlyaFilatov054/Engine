@@ -51,12 +51,15 @@ const VkDescriptorSetLayout& DescriptorManager::layout(uint32_t id) const {
 }
 
 std::vector<VkDescriptorSet> DescriptorManager::allocateSets(uint32_t layout, uint32_t count) const {
-    std::vector<VkDescriptorSet> sets(count);
+    std::vector<VkDescriptorSet> sets;
+    sets.resize(count);
+    std::vector<VkDescriptorSetLayout> layouts;
+    for(uint32_t i = 0; i < count; i++) layouts.push_back(m_layouts[layout]);
     VkDescriptorSetAllocateInfo ssboSetAllocInfo {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
         .descriptorPool = m_pool,
         .descriptorSetCount = count,
-        .pSetLayouts = &m_layouts[layout],
+        .pSetLayouts = layouts.data(),
     };
     vkAllocateDescriptorSets(m_context->device(), &ssboSetAllocInfo, sets.data());
     return sets;

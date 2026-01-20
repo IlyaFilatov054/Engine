@@ -82,29 +82,29 @@ void Image::createView(const VkImageAspectFlags aspect) {
     validateVkResult(res, "vkCreateImageView");
 }
 
-void Image::transitionLayout(const VkImageLayout oldLayout, const VkImageLayout newLayout) const {
-    VkPipelineStageFlags sourceStage, destinationStage;
-    VkAccessFlags srcAccessMask, dstAccessMask;
-    if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL){
-        srcAccessMask = 0;
-        dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    }
-    else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL){
-        srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    }
- 
+void Image::transitionLayout(
+    const VkImageLayout layout,
+    const VkPipelineStageFlags stage,
+    const VkAccessFlags accessMask
+) const {
+    executeOnGpu(m_context, [&](const VkCommandBuffer commandBuffer) {
+        transitionLayout(layout, stage, accessMask, commandBuffer);
+    });
+}
+
+void Image::transitionLayout(
+        const VkImageLayout layout,
+        const VkPipelineStageFlags stage,
+        const VkAccessFlags accessMask,
+        const VkCommandBuffer commandBuffer
+) const {
     VkImageMemoryBarrier barrier {
         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .srcAccessMask = srcAccessMask,
-        .dstAccessMask = dstAccessMask,
+        .srcAccessMask = m_accessMask,
+        .dstAccessMask = accessMask,
 
-        .oldLayout = oldLayout,
-        .newLayout = newLayout,
+        .oldLayout = m_layout,
+        .newLayout = layout,
         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .image = m_image,
@@ -116,9 +116,7 @@ void Image::transitionLayout(const VkImageLayout oldLayout, const VkImageLayout 
             .layerCount = 1
         },
     };
-    executeOnGpu(m_context, [&](const VkCommandBuffer commandBuffer){
-        vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-    });    
+    vkCmdPipelineBarrier(commandBuffer, m_stage, stage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
 void Image::copyBufferToImage(const AbstractBuffer* buffer) {

@@ -5,7 +5,7 @@
 #include <vulkan/vulkan_core.h>
 #include "render/StagedBuffer.h"
 
-const uint32_t SSBO_SIZE = 1024 * 1024;
+const uint32_t SSBO_SIZE = 1024;
 
 class FrameResources {
 public:

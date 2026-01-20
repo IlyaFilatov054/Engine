@@ -4,6 +4,7 @@
 #include "render/FrameManager.h"
 #include "render/FrameResources.h"
 #include "render/ImageResources.h"
+#include "render/RenderGraph.h"
 #include "render/RenderObject.h"
 #include "render/RenderPass.h"
 #include "render/ResourceManager.h"
@@ -28,7 +29,7 @@ private:
     const VkContext* m_context = nullptr;
     const Swapchain* m_swapchain = nullptr;
 
-    RenderPass* m_renderPass = nullptr;
+    RenderGraph* m_renderGraph = nullptr;
     ShaderManager* m_shaderManager = nullptr;
     FrameManager* m_frameManager = nullptr;
     DescriptorManager* m_descriptorManager = nullptr;
@@ -48,5 +49,5 @@ private:
     [[deprecated]] std::vector<uint32_t> m_indices {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
     [[deprecated]] Camera* camera = nullptr;
 
-    void recordCommandBuffer(const FrameResources& frameResources, const ImageResources& imageResources);
+    void recordCommandBuffer(const FrameResources* frameResources, const ImageResources* imageResources, const AttachmentResources* attachmentResources);
 };

@@ -2,11 +2,11 @@
 #include "render/Pipeline.h"
 #include "render/VkUtils.h"
 
-RenderPass::RenderPass(const VkContext* context, const Swapchain* swapchain,
-    const ShaderManager* shaderManager, const std::vector<VkDescriptorSetLayout> usedLayouts) 
-: m_context(context), m_swapchain(swapchain) {
+RenderPass::RenderPass(const VkContext* context, const VkFormat& format, const VkExtent2D& extent,
+    const std::vector<ShaderDescription>& shaders, const std::vector<VkDescriptorSetLayout> usedLayouts) 
+: m_context(context), m_format(format), m_extent(extent) {
     VkAttachmentDescription colorAttachment {
-        .format = m_swapchain->format().format,
+        .format = m_format,
         .samples = VK_SAMPLE_COUNT_1_BIT,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -65,7 +65,7 @@ RenderPass::RenderPass(const VkContext* context, const Swapchain* swapchain,
     auto res = vkCreateRenderPass(m_context->device(), &renderPassCreateInfo, nullptr, &m_renderPass);
     validateVkResult(res, "vkCreateRenderPass");
 
-    m_pipeline = new Pipeline(m_context, m_swapchain, m_renderPass, shaderManager, usedLayouts);
+    m_pipeline = new Pipeline(m_context, extent, m_renderPass, shaders, usedLayouts);
 };
 
 RenderPass::~RenderPass() {
@@ -79,4 +79,8 @@ const VkRenderPass& RenderPass::renderPass() const {
 
 const Pipeline& RenderPass::pipeline() const {
     return *m_pipeline;
+}
+
+const VkExtent2D& RenderPass::extent() const {
+    return m_extent;
 }
