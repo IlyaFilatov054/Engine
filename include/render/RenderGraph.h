@@ -1,18 +1,27 @@
 #pragma once
 
 #include "render/AttachmentResources.h"
+#include "render/MeshBuffer.h"
 #include "render/RenderPass.h"
 #include "render/VkContext.h"
 #include <cstdint>
+#include <map>
 #include <vector>
 #include <vulkan/vulkan_core.h>
-#include "render/RenderObject.h"
 
-struct RenderGraphNodeDescription {
+struct DrawCall {
+    uint32_t pushConstant;
+    MeshBuffer* mesh;
+};
+
+struct RenderGraphNode {
     uint32_t renderPass;
     std::vector<uint32_t> inputSamplers;
     uint32_t outputFramebuffer;
-    std::vector<VkDescriptorSet> descriptors;
+    std::vector<VkDescriptorSet> constDescriptors;
+    std::vector<uint32_t> frameDescriptors;
+    std::vector<DrawCall> drawCalls;
+    bool clearDrawCalls;
 };
 
 class RenderGraph {
@@ -27,12 +36,15 @@ public:
         const std::vector<ShaderDescription>& shaders,
         const std::vector<VkDescriptorSetLayout> usedLayouts
     );
-    uint32_t addNode(const RenderGraphNodeDescription& nodeDescription);
-    void beginNode(uint32_t node, const VkCommandBuffer commandBuffer, const AttachmentResources* attachments) const;
-    void endNode(uint32_t node, const VkCommandBuffer commandBuffer) const;
+    uint32_t addNode(const RenderGraphNode& node, uint32_t step);
+    void execute(const VkCommandBuffer commandBuffer, const AttachmentResources* attachments);
+    void addDrawCall(uint32_t node, const DrawCall drawCall);
 
 private:
     const VkContext* m_context;
     std::vector<RenderPass*> m_renderPasses;
-    std::vector<RenderGraphNodeDescription> m_nodes;
+    std::vector<RenderGraphNode> m_nodes;
+    std::map<uint32_t, std::vector<uint32_t>> m_steps;
+
+    void executeNode(uint32_t node, const VkCommandBuffer commandBuffer, const AttachmentResources* attachments);
 };

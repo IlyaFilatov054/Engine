@@ -3,15 +3,11 @@
 #include <vulkan/vulkan_core.h>
 #include "render/VkUtils.h"
 
-FrameResources::FrameResources(const VkContext* context, const VkDescriptorSet& ssboDescriptor)
- : m_context(context),
-   m_ssbo(m_context, SSBO_SIZE, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 
-    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT),
-   m_ssboDescriptor(ssboDescriptor) {
+FrameResources::FrameResources(const VkContext* context)
+ : m_context(context) {
     createCommandPool();
     createCommandBuffer();
     createSynchronization();
-    createSsbo();
 }
 
 FrameResources::~FrameResources() {
@@ -69,30 +65,4 @@ void FrameResources::createSynchronization() {
     validateVkResult(res, "vkCreateSemaphore");
     res = vkCreateFence(m_context->device(), &fenceInfo, nullptr, &m_submited);
     validateVkResult(res, "vkCreateFence");
-}
-
-void FrameResources::createSsbo() {
-    VkDescriptorBufferInfo bufferInfo {
-        .buffer = m_ssbo.buffer(),
-        .offset = 0,
-        .range = SSBO_SIZE,
-    };
-    VkWriteDescriptorSet write {
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstSet = m_ssboDescriptor,
-        .dstBinding = 0,
-        .descriptorCount = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        .pBufferInfo = &bufferInfo,
-    };
-    vkUpdateDescriptorSets(m_context->device(), 1, &write, 0, nullptr);
-}
-
-const VkDescriptorSet& FrameResources::ssboDescriptor() const {
-    return m_ssboDescriptor;
-}
-
-void FrameResources::setSsboData(const VkCommandBuffer& commandBuffer, void* data, uint32_t size) const {
-    m_ssbo.stagingBuffer().setData(data, size, 0);
-    m_ssbo.flush(commandBuffer);
 }

@@ -1,4 +1,5 @@
 #include "render/AttachmentResources.h"
+#include "render/StagedBuffer.h"
 #include <cstdint>
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -48,7 +49,7 @@ uint32_t AttachmentResources::addImageAttachment(VkFormat format, VkImageUsageFl
     return m_imageAttachments.size() - 1;
 }
 
-WriteAttachment AttachmentResources::writeAttachment(uint32_t id) const{
+const WriteAttachment& AttachmentResources::writeAttachment(uint32_t id) const{
     return m_writeAttachments[id];
 }
 
@@ -82,7 +83,7 @@ uint32_t AttachmentResources::addWriteAttachment(
     return m_writeAttachments.size() - 1;
 }
 
-ReadAttachment AttachmentResources::readAttachment(uint32_t id) const {
+const ReadAttachment& AttachmentResources::readAttachment(uint32_t id) const {
     return m_readAttachments[id];
 }
 
@@ -114,4 +115,36 @@ uint32_t AttachmentResources::addReadAttachment(
     };
     m_readAttachments.push_back(attachment);
     return m_readAttachments.size() - 1;
+}
+
+const DescriptorAttachment& AttachmentResources::descriptorAttachment(uint32_t id) const {
+    return m_descriptorAttachments[id];
+}
+
+uint32_t AttachmentResources::addDescriptorAttachment(
+    const VkDescriptorSet descriptor,
+    const VkDescriptorType type,
+    const VkBufferUsageFlagBits usage,
+    uint32_t bufferSize
+) {
+    DescriptorAttachment attachment {
+        .descriptor = descriptor,
+        .buffer = new StagedBuffer(m_context, bufferSize, usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+    };
+    VkDescriptorBufferInfo bufferInfo {
+        .buffer = attachment.buffer->buffer(),
+        .offset = 0,
+        .range = bufferSize,
+    };
+    VkWriteDescriptorSet write {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = descriptor,
+        .dstBinding = 0,
+        .descriptorCount = 1,
+        .descriptorType = type,
+        .pBufferInfo = &bufferInfo,
+    };
+    vkUpdateDescriptorSets(m_context->device(), 1, &write, 0, nullptr);
+    m_descriptorAttachments.push_back(attachment);
+    return m_descriptorAttachments.size() - 1;   
 }

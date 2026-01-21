@@ -21,9 +21,9 @@ void FrameManager::createImageResources() {
     }
 }
 
-void FrameManager::createFrameResources(const std::vector<VkDescriptorSet>& sets) {
+void FrameManager::createFrameResources() {
     for(uint32_t i = 0; i < m_maxFrames; i++) {
-        m_frameResources.push_back(new FrameResources(m_context, sets[i]));
+        m_frameResources.push_back(new FrameResources(m_context));
     }
 }
 
@@ -41,7 +41,7 @@ const FrameResources* FrameManager::currentFrameResources() const {
     return m_frameResources[m_currentFrame];
 }
 
-const AttachmentResources* FrameManager::attachmentResources(const uint32_t image) const {
+AttachmentResources* FrameManager::attachmentResources(const uint32_t image) const {
     return m_attachmentResources[image];
 }
 
@@ -53,49 +53,6 @@ const uint32_t FrameManager::maxFrames() const {
     return m_maxFrames;
 }
 
-uint32_t FrameManager::addImageAttachments(const std::vector<Image*>& images) {
-    uint32_t attachment;
-    for(uint32_t i = 0; i < m_imageCount; i++) {
-        attachment = m_attachmentResources[i]->addImageAttachment(images[i]);
-    }
-    return attachment;
-}
-
-uint32_t FrameManager::addImageAttachment
-(
-    VkFormat format,
-    VkImageUsageFlags usage,
-    VkExtent3D extent,
-    VkImageAspectFlags aspect
-) {
-    uint32_t attachment;
-    for(auto& i : m_attachmentResources) {
-        attachment = i->addImageAttachment(format, usage, extent, aspect);
-    }
-    return attachment;
-}
-
-uint32_t FrameManager::addWriteAttachment
-(
-    const VkRenderPass renderPass,
-    const VkExtent2D& extent,
-    const std::vector<uint32_t>& attachments
-) {
-    uint32_t attachment;
-    for(auto& i : m_attachmentResources) {
-        attachment = i->addWriteAttachment(renderPass, extent, attachments);
-    }
-    return attachment;
-}
-
-uint32_t FrameManager::addReadAttachment
-(
-    VkDescriptorSet descriptor,
-    const std::vector<uint32_t>& attachments
-) {
-    uint32_t attachment;
-    for(auto& i : m_attachmentResources) {
-        attachment = i->addReadAttachment(descriptor, attachments);
-    }
-    return attachment;
+const uint32_t FrameManager::imageCount() const {
+    return m_imageCount;
 }
