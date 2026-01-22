@@ -10,7 +10,6 @@
 #include "render/AttachmentResources.h"
 #include "render/DescriptorManager.h"
 #include "render/FrameManager.h"
-#include "render/MeshBuffer.h"
 #include "render/Pipeline.h"
 #include "render/RenderGraph.h"
 #include "render/RenderPass.h"
@@ -76,13 +75,14 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         },
     };
     uint32_t cameraLayout = m_descriptorManager->createLayout(cameraBindings);
-    camera = new Camera(m_context, m_descriptorManager->allocateSet(cameraLayout));
+    auto cameraDescriptors = m_descriptorManager->allocateSets(cameraLayout, m_frameManager->imageCount());
+    camera = new Camera(m_context);
     camera->aspect = (float)m_swapchain->extent().width / (float)m_swapchain->extent().height;
 
     std::vector<VkDescriptorSetLayout> usedLayouts = {
-        m_descriptorManager->layout(cameraLayout),
         m_descriptorManager->layout(texturesLayout),
         m_descriptorManager->layout(ssboLayout),
+        m_descriptorManager->layout(cameraLayout),
     };
 
     m_shaderManager = new ShaderManager(m_context);
@@ -110,6 +110,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     auto ssboSets = m_descriptorManager->allocateSets(ssboLayout, m_frameManager->imageCount());
     uint32_t framebuffer = 0;
     uint32_t ssbo = 0;
+    uint32_t cameraDesc = 0;
     for(uint32_t i = 0; i < m_frameManager->imageCount(); i++) {
         auto color = m_frameManager->attachmentResources(i)->addImageAttachment(m_swapchain->images()[i]);
         auto depth = m_frameManager->attachmentResources(i)->addImageAttachment(
@@ -120,6 +121,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         );
         m_frameManager->attachmentResources(i)->addWriteAttachment(m_renderGraph->renderPass(renderPass)->renderPass(), {m_swapchain->extent().width, m_swapchain->extent().height}, {color, depth});
         ssbo = m_frameManager->attachmentResources(i)->addDescriptorAttachment(ssboSets[i], VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 1024);
+        cameraDesc = m_frameManager->attachmentResources(i)->addDescriptorAttachment(cameraDescriptors[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, camera->dataSize());
     }
     
     m_renderGraph->addNode(
@@ -127,10 +129,9 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
             .renderPass = renderPass,
             .outputFramebuffer = framebuffer,
             .constDescriptors = {
-                camera->descriptorSet(),
-                m_resourceManager->texturesDescriptor()           
+                m_resourceManager->texturesDescriptor()
             },
-            .frameDescriptors = {ssbo},
+            .frameDescriptors = {ssbo, cameraDesc},
             .clearDrawCalls = true,
         }, 0);
 }
@@ -153,7 +154,6 @@ void RenderCore::drawFrame() {
     camera->position.x = 4 * std::cos(c);
     camera->position.z = 4 * std::sin(c);
     //camera->position.y = 4 * std::sin(0.333f * c);
-    camera->update();
 
     m_frameManager->currentFrameResources()->waitFence();
 
@@ -204,6 +204,9 @@ void RenderCore::recordCommandBuffer(const FrameResources* frameResources, const
     
     attachmentResources->descriptorAttachment(0).buffer->stagingBuffer().setData(m_resourceManager->renderData(), m_resourceManager->renderDataSize(), 0);
     attachmentResources->descriptorAttachment(0).buffer->flush(frameResources->commandBuffer());
+
+    attachmentResources->descriptorAttachment(1).buffer->stagingBuffer().setData(camera->data(), camera->dataSize(), 0);
+    attachmentResources->descriptorAttachment(1).buffer->flush(frameResources->commandBuffer());
 
     for(const auto& r : m_renderObjects) {
         m_renderGraph->addDrawCall(0, {

@@ -1,6 +1,6 @@
 #version 450
 
-layout(set = 1, binding = 0) uniform sampler2D textures[16];
+layout(set = 0, binding = 0) uniform sampler2D textures[16];
 
 layout(location = 0) in vec4 fragColor;
 layout(location = 1) flat in uint textureIndex;

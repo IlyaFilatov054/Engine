@@ -1,6 +1,6 @@
 #version 450
 
-layout(set = 0, binding = 0) uniform Camera {
+layout(set = 2, binding = 0) uniform Camera {
     mat4 view;
     mat4 proj;
 } camera;
@@ -15,7 +15,7 @@ layout(push_constant) uniform PushConstants {
     uint objectId;
 };
 
-layout(std430, set = 2, binding = 0) readonly buffer ObjectBuffer {
+layout(std430, set = 1, binding = 0) readonly buffer ObjectBuffer {
     ObjectData objects[];
 };
 
