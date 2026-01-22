@@ -29,6 +29,9 @@ AttachmentResources::~AttachmentResources() {
         if(a.external) continue;
         delete a.image;
     }
+    for(auto& a : m_descriptorAttachments) {
+        delete a.buffer;
+    }
     vkDestroySampler(m_context->device(), m_readAttachmentSampler, nullptr);
 }
 

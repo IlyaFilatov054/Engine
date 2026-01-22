@@ -15,7 +15,7 @@ layout(push_constant) uniform PushConstants {
     uint objectId;
 };
 
-layout(std430, set = 1, binding = 0) readonly buffer ObjectBuffer {
+layout(std430, set = 2, binding = 0) readonly buffer ObjectBuffer {
     ObjectData objects[];
 };
 
