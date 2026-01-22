@@ -1,45 +1,41 @@
 #include "render/RenderPass.h"
 #include "render/Pipeline.h"
 #include "render/VkUtils.h"
+#include <cstdint>
+#include <vector>
+#include <vulkan/vulkan_core.h>
 
-RenderPass::RenderPass(const VkContext* context, const VkFormat& format, const VkExtent2D& extent,
-    const std::vector<ShaderDescription>& shaders, const std::vector<VkDescriptorSetLayout> usedLayouts) 
-: m_context(context), m_format(format), m_extent(extent) {
-    VkAttachmentDescription colorAttachment {
-        .format = m_format,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-    };
-    VkAttachmentReference colorAttachmentReference {
-        .attachment = 0,
-        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-    };
-
-    VkAttachmentDescription depthAttachment {
-        .format = VK_FORMAT_D32_SFLOAT,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-    };
-    VkAttachmentReference depthAttachmentReference {
-        .attachment = 1,
-        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-    };
+RenderPass::RenderPass(
+    const VkContext* context,
+    const std::vector<VkAttachmentDescription>& attachments,
+    const std::vector<VkImageLayout>& attachmentLayouts,
+    const VkExtent2D& extent,
+    const std::vector<ShaderDescription>& shaders,
+    const std::vector<VkDescriptorSetLayout> usedLayouts) 
+: m_context(context), m_extent(extent) {
+    std::vector<VkAttachmentReference> colorReferences;
+    VkAttachmentReference depthReference;
+    int depthAttachment = -1;
+    for(uint32_t i = 0; i < attachments.size(); i++) {
+        if(attachments[i].format == VK_FORMAT_D32_SFLOAT) {
+            depthAttachment = static_cast<uint32_t>(i);
+            depthReference = {
+                .attachment = i,
+                .layout = attachmentLayouts[i]
+            };
+            continue;
+        }
+        colorReferences.push_back({
+            .attachment = i,
+            .layout = attachmentLayouts[i]
+        });
+    }
 
     VkSubpassDescription subpassDescription {
         .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-        .colorAttachmentCount = 1,
-        .pColorAttachments = &colorAttachmentReference,
-        .pDepthStencilAttachment = &depthAttachmentReference
+        .colorAttachmentCount = static_cast<uint32_t>(colorReferences.size()),
+        .pColorAttachments = colorReferences.data(),
+        .pDepthStencilAttachment = depthAttachment > 0 ? &depthReference : nullptr
     };
 
     VkSubpassDependency subpassDependency {
@@ -51,11 +47,10 @@ RenderPass::RenderPass(const VkContext* context, const VkFormat& format, const V
         .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
     };
 
-    VkAttachmentDescription attachments[] = {colorAttachment, depthAttachment};
     VkRenderPassCreateInfo renderPassCreateInfo {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        .attachmentCount = 2,
-        .pAttachments = attachments,
+        .attachmentCount = static_cast<uint32_t>(attachments.size()),
+        .pAttachments = attachments.data(),
         .subpassCount = 1,
         .pSubpasses = &subpassDescription,
         .dependencyCount = 1,

@@ -22,6 +22,7 @@ struct RenderGraphNode {
     std::vector<uint32_t> frameDescriptors;
     std::vector<DrawCall> drawCalls;
     bool clearDrawCalls;
+    std::vector<VkClearValue> clearValues;
 };
 
 class RenderGraph {
@@ -31,7 +32,8 @@ public:
 
     const RenderPass* renderPass(uint32_t id) const;
     uint32_t addRenderPass(
-        const VkFormat& format,
+        const std::vector<VkAttachmentDescription>& attachments,
+        const std::vector<VkImageLayout>& attachmentLayouts,
         const VkExtent2D& extent, 
         const std::vector<ShaderDescription>& shaders,
         const std::vector<VkDescriptorSetLayout> usedLayouts

@@ -2,6 +2,7 @@
 #include "render/RenderPass.h"
 #include <cstdint>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 RenderGraph::RenderGraph(const VkContext* context) : m_context(context) {
 
@@ -18,12 +19,13 @@ const RenderPass* RenderGraph::renderPass(uint32_t id) const {
 }
 
 uint32_t RenderGraph::addRenderPass(
-    const VkFormat& format,
+    const std::vector<VkAttachmentDescription>& attachments,
+    const std::vector<VkImageLayout>& attachmentLayouts,
     const VkExtent2D& extent, 
     const std::vector<ShaderDescription>& shaders,
     const std::vector<VkDescriptorSetLayout> usedLayouts
 ) {
-    m_renderPasses.push_back(new RenderPass(m_context, format, extent, shaders, usedLayouts));
+    m_renderPasses.push_back(new RenderPass(m_context, attachments, attachmentLayouts, extent, shaders, usedLayouts));
     return m_renderPasses.size() - 1;
 }
 
@@ -53,16 +55,14 @@ void RenderGraph::addDrawCall(uint32_t node, const DrawCall drawCall) {
 void RenderGraph::executeNode(uint32_t node, const VkCommandBuffer commandBuffer, const AttachmentResources* attachments) {
     auto& n = m_nodes[node];
     auto pass = renderPass(n.renderPass);
-    VkClearValue clearValues[2];
-    clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
-    clearValues[1].depthStencil = {1.0f, 0};
+    
     VkRenderPassBeginInfo renderPassInfo {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
         .renderPass = pass->renderPass(),
         .framebuffer = attachments->writeAttachment(n.outputFramebuffer).framebuffer,
         .renderArea = {.offset = {0, 0}, .extent = renderPass(n.renderPass)->extent()},
-        .clearValueCount = 2,
-        .pClearValues = clearValues
+        .clearValueCount = static_cast<uint32_t>(n.clearValues.size()),
+        .pClearValues = n.clearValues.data(),
     };
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->pipeline().pipeline());
@@ -74,12 +74,17 @@ void RenderGraph::executeNode(uint32_t node, const VkCommandBuffer commandBuffer
     }
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->pipeline().layout(), 0, descriptors.size(), descriptors.data(), 0, nullptr);
 
-    for(const auto& d : n.drawCalls) {
-        vkCmdPushConstants(commandBuffer, pass->pipeline().layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(uint32_t), &d.pushConstant);
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &d.mesh->vertexBuffer(), offsets);
-        vkCmdBindIndexBuffer(commandBuffer, d.mesh->indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(commandBuffer, d.mesh->indicesCount(), 1, 0, 0, 0);
+    if(n.drawCalls.size() > 0) {
+        for(const auto& d : n.drawCalls) {
+            vkCmdPushConstants(commandBuffer, pass->pipeline().layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(uint32_t), &d.pushConstant);
+            VkDeviceSize offsets[] = {0};
+            vkCmdBindVertexBuffers(commandBuffer, 0, 1, &d.mesh->vertexBuffer(), offsets);
+            vkCmdBindIndexBuffer(commandBuffer, d.mesh->indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(commandBuffer, d.mesh->indicesCount(), 1, 0, 0, 0);
+        }
+    }
+    else {
+        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
     }
     if(n.clearDrawCalls) n.drawCalls.clear();
 

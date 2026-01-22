@@ -5,7 +5,6 @@
 #include <glm/fwd.hpp>
 #include <vector>
 #include <vulkan/vulkan_core.h>
-#include "render/MappedBuffer.h"
 #include "render/VkContext.h"
 
 class Camera {
