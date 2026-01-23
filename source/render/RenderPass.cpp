@@ -35,13 +35,13 @@ RenderPass::RenderPass(
         .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
         .colorAttachmentCount = static_cast<uint32_t>(colorReferences.size()),
         .pColorAttachments = colorReferences.data(),
-        .pDepthStencilAttachment = depthAttachment > 0 ? &depthReference : nullptr
+        .pDepthStencilAttachment = depthAttachment > -1 ? &depthReference : nullptr
     };
 
     VkSubpassDependency subpassDependency {
         .srcSubpass = VK_SUBPASS_EXTERNAL,
         .dstSubpass = 0,
-        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
         .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
         .srcAccessMask = 0,
         .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT

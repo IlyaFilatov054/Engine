@@ -110,7 +110,13 @@ uint32_t AttachmentResources::addReadAttachment(
             .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
             .pImageInfo = &info
         };
-        vkUpdateDescriptorSets(m_context->device(), 1, &write, 0, nullptr);    
+        vkUpdateDescriptorSets(m_context->device(), 1, &write, 0, nullptr);
+        
+        imageAttachment(attachments[i]).image->transitionLayout(
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+        );
     }
     ReadAttachment attachment {
         .descriptor = descriptor,

@@ -67,7 +67,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         VkDescriptorSetLayoutBinding {
             .binding = 0,
             .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .descriptorCount = 16,
+            .descriptorCount = 1,
             .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
         },
     };
@@ -149,7 +149,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
             .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         },
         {
             .format = VK_FORMAT_D32_SFLOAT,
@@ -163,7 +163,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         }
     };
     std::vector<VkImageLayout> renderPassAttachmentLayouts {
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
     };
     std::vector<VkAttachmentDescription> renderPass2Attachments {
@@ -190,25 +190,26 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     uint32_t offscreenRead = 0;
     uint32_t offscreenWrite = 0;
     for(uint32_t i = 0; i < m_frameManager->imageCount(); i++) {
-        auto color = m_frameManager->attachmentResources(i)->addImageAttachment(m_swapchain->images()[i]);
+        auto present = m_frameManager->attachmentResources(i)->addImageAttachment(m_swapchain->images()[i]);
         auto depth = m_frameManager->attachmentResources(i)->addImageAttachment(
             VK_FORMAT_D32_SFLOAT,
             VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
             { m_swapchain->extent().width, m_swapchain->extent().height, 1},
             VK_IMAGE_ASPECT_DEPTH_BIT
         );
-        swapchainFramebuffer = m_frameManager->attachmentResources(i)->addWriteAttachment(m_renderGraph->renderPass(renderPass)->renderPass(), {m_swapchain->extent().width, m_swapchain->extent().height}, {color, depth});
-        ssbo = m_frameManager->attachmentResources(i)->addDescriptorAttachment(ssboDescriptors[i], VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 1024);
-        cameraDesc = m_frameManager->attachmentResources(i)->addDescriptorAttachment(cameraDescriptors[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, camera->dataSize());
-        
-        uint32_t offscreen = m_frameManager->attachmentResources(i)->addImageAttachment(
+        auto color = m_frameManager->attachmentResources(i)->addImageAttachment(
             m_swapchain->format().format,
-            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
             { m_swapchain->extent().width, m_swapchain->extent().height, 1},
             VK_IMAGE_ASPECT_COLOR_BIT
         );
-        offscreenWrite = m_frameManager->attachmentResources(i)->addWriteAttachment(m_renderGraph->renderPass(secondRenderPass)->renderPass(), {m_swapchain->extent().width, m_swapchain->extent().height}, {offscreen});
-        offscreenRead = m_frameManager->attachmentResources(i)->addReadAttachment(offscreenDescriptor, {offscreen});
+        
+        ssbo = m_frameManager->attachmentResources(i)->addDescriptorAttachment(ssboDescriptors[i], VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 1024);
+        cameraDesc = m_frameManager->attachmentResources(i)->addDescriptorAttachment(cameraDescriptors[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, camera->dataSize());
+        
+        swapchainFramebuffer = m_frameManager->attachmentResources(i)->addWriteAttachment(m_renderGraph->renderPass(secondRenderPass)->renderPass(), {m_swapchain->extent().width, m_swapchain->extent().height}, {present});
+        offscreenWrite = m_frameManager->attachmentResources(i)->addWriteAttachment(m_renderGraph->renderPass(renderPass)->renderPass(), {m_swapchain->extent().width, m_swapchain->extent().height}, {color, depth});
+        offscreenRead = m_frameManager->attachmentResources(i)->addReadAttachment(offscreenDescriptor, {color});
     }
     
     m_renderGraph->addNode(
@@ -231,8 +232,8 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_renderGraph->addNode(
         {
             .renderPass = secondRenderPass,
+            .inputSamplers = {offscreenRead},
             .outputFramebuffer = swapchainFramebuffer,
-            .frameDescriptors = {offscreenRead},
         }, 1
     );
 }

@@ -59,6 +59,7 @@ void Image::createImage(const VkImageUsageFlags usage, const VkExtent3D extent) 
 }
 
 void Image::createView(const VkImageAspectFlags aspect) {
+    m_aspect = aspect;
     VkImageViewCreateInfo imageViewInfo {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .image = m_image,
@@ -109,7 +110,7 @@ void Image::transitionLayout(
         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .image = m_image,
         .subresourceRange {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .aspectMask = m_aspect,
             .baseMipLevel = 0,
             .levelCount = 1,
             .baseArrayLayer = 0,
@@ -125,7 +126,7 @@ void Image::copyBufferToImage(const AbstractBuffer* buffer) {
         .bufferRowLength = 0,
         .bufferImageHeight = 0,
         .imageSubresource {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .aspectMask = m_aspect,
             .mipLevel = 0,
             .baseArrayLayer = 0,
             .layerCount = 1,
@@ -140,4 +141,36 @@ void Image::copyBufferToImage(const AbstractBuffer* buffer) {
     executeOnGpu(m_context, [&](const VkCommandBuffer commandBuffer) {
         vkCmdCopyBufferToImage(commandBuffer, buffer->buffer(), m_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     });
+}
+
+void Image::setLayout(VkImageLayout layout) {
+    m_layout = layout;
+}
+
+VkImageLayout Image::layout() const {
+    return m_layout;
+}
+
+void Image::setPipelineStage(VkPipelineStageFlags stage) {
+    m_stage = stage;
+}
+
+VkPipelineStageFlags Image::pipelineStage() const {
+    return m_stage;
+}
+
+void Image::setAccessMask(VkAccessFlags mask) {
+    m_accessMask = mask;
+}
+
+VkAccessFlags Image::accessMask() const {
+    return m_accessMask;
+}
+
+void Image::setAspect(VkImageAspectFlags aspect) {
+    m_aspect = aspect;
+}
+
+VkImageAspectFlags Image::aspect() const {
+    return m_aspect;
 }

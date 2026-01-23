@@ -55,7 +55,23 @@ void RenderGraph::addDrawCall(uint32_t node, const DrawCall drawCall) {
 void RenderGraph::executeNode(uint32_t node, const VkCommandBuffer commandBuffer, const AttachmentResources* attachments) {
     auto& n = m_nodes[node];
     auto pass = renderPass(n.renderPass);
-    
+
+    for(uint32_t i = 0; i < n.inputSamplers.size(); i++) {
+        auto& inputAttachment = attachments->readAttachment(n.inputSamplers[i]);
+        for (uint32_t i = 0; i < inputAttachment.images.size(); i++) {
+            auto inputAttachmentImage = attachments->imageAttachment(inputAttachment.images[i]);
+            inputAttachmentImage.image->setLayout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+            inputAttachmentImage.image->setPipelineStage(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+            inputAttachmentImage.image->setAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
+            inputAttachmentImage.image->transitionLayout(
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_SHADER_READ_BIT,
+                commandBuffer
+            );
+        }
+    }
+
     VkRenderPassBeginInfo renderPassInfo {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
         .renderPass = pass->renderPass(),
@@ -70,7 +86,10 @@ void RenderGraph::executeNode(uint32_t node, const VkCommandBuffer commandBuffer
     std::vector<VkDescriptorSet> descriptors;
     descriptors.insert(descriptors.end(), n.constDescriptors.begin(), n.constDescriptors.end());
     for(uint32_t i = 0; i < n.frameDescriptors.size(); i++) {
-        descriptors.push_back(attachments->descriptorAttachment(i).descriptor);
+        descriptors.push_back(attachments->descriptorAttachment(n.frameDescriptors[i]).descriptor);
+    }
+    for(uint32_t i = 0; i < n.inputSamplers.size(); i++) {
+        descriptors.push_back(attachments->readAttachment(n.inputSamplers[i]).descriptor);
     }
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pass->pipeline().layout(), 0, descriptors.size(), descriptors.data(), 0, nullptr);
 

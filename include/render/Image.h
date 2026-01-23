@@ -28,6 +28,15 @@ public:
         const VkCommandBuffer commandBuffer
     ) const;
     void copyBufferToImage(const AbstractBuffer* buffer);
+
+    void setLayout(VkImageLayout layout);
+    VkImageLayout layout() const;
+    void setPipelineStage(VkPipelineStageFlags stage);
+    VkPipelineStageFlags pipelineStage() const;
+    void setAccessMask(VkAccessFlags mask);
+    VkAccessFlags accessMask() const;
+    void setAspect(VkImageAspectFlags aspect);
+    VkImageAspectFlags aspect() const;
 private:
     const VkContext* m_context;
     const VkFormat m_format;
@@ -41,4 +50,5 @@ private:
     VkImageLayout m_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     VkPipelineStageFlags m_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     VkAccessFlags m_accessMask = 0;
+    VkImageAspectFlags m_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
 };
