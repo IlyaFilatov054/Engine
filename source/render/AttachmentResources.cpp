@@ -35,16 +35,16 @@ AttachmentResources::~AttachmentResources() {
     vkDestroySampler(m_context->device(), m_readAttachmentSampler, nullptr);
 }
 
-ImageAttachment AttachmentResources::imageAttachment(uint32_t id) const {
-    return m_imageAttachments[id];
+ImageAttachment AttachmentResources::imageAttachment(ImageAttachmentHandle handle) const {
+    return m_imageAttachments[handle];
 }
 
-uint32_t AttachmentResources::addImageAttachment(Image* attachment) {
+ImageAttachmentHandle AttachmentResources::addImageAttachment(Image* attachment) {
     m_imageAttachments.emplace_back(attachment, true);
     return m_imageAttachments.size() - 1;
 }
 
-uint32_t AttachmentResources::addImageAttachment(VkFormat format, VkImageUsageFlags usage, VkExtent3D extent, VkImageAspectFlags aspect) {
+ImageAttachmentHandle AttachmentResources::addImageAttachment(VkFormat format, VkImageUsageFlags usage, VkExtent3D extent, VkImageAspectFlags aspect) {
     Image* attachment = new Image(m_context, format);
     attachment->createImage(usage, extent);
     attachment->createView(aspect);
@@ -52,23 +52,23 @@ uint32_t AttachmentResources::addImageAttachment(VkFormat format, VkImageUsageFl
     return m_imageAttachments.size() - 1;
 }
 
-const WriteAttachment& AttachmentResources::writeAttachment(uint32_t id) const{
-    return m_writeAttachments[id];
+WriteAttachment AttachmentResources::writeAttachment(WriteAttachmentHandle handle) const{
+    return m_writeAttachments[handle];
 }
 
-uint32_t AttachmentResources::addWriteAttachment(
+WriteAttachmentHandle AttachmentResources::addWriteAttachment(
     const VkRenderPass renderPass,
     const VkExtent2D& extent,
-    const std::vector<uint32_t>& attachments
+    const std::vector<ImageAttachmentHandle>& imageAttachments
 ) {
     std::vector<VkImageView> framebufferAttachments;
-    for(const auto& i : attachments) {
+    for(const auto& i : imageAttachments) {
         framebufferAttachments.push_back(imageAttachment(i).image->view());
     }
 
     WriteAttachment attachment {
         .framebuffer = VK_NULL_HANDLE,
-        .images = attachments
+        .images = imageAttachments
     };
     
     VkFramebufferCreateInfo framebufferInfo {
@@ -86,11 +86,11 @@ uint32_t AttachmentResources::addWriteAttachment(
     return m_writeAttachments.size() - 1;
 }
 
-const ReadAttachment& AttachmentResources::readAttachment(uint32_t id) const {
-    return m_readAttachments[id];
+ReadAttachment AttachmentResources::readAttachment(ReadAttachmentHandle handle) const {
+    return m_readAttachments[handle];
 }
 
-uint32_t AttachmentResources::addReadAttachment(
+ReadAttachmentHandle AttachmentResources::addReadAttachment(
     VkDescriptorSet descriptor,
     const std::vector<uint32_t>& attachments
 ) {
@@ -126,11 +126,11 @@ uint32_t AttachmentResources::addReadAttachment(
     return m_readAttachments.size() - 1;
 }
 
-const DescriptorAttachment& AttachmentResources::descriptorAttachment(uint32_t id) const {
-    return m_descriptorAttachments[id];
+DescriptorAttachment AttachmentResources::descriptorAttachment(DescriptorAttachmentHandle handle) const {
+    return m_descriptorAttachments[handle];
 }
 
-uint32_t AttachmentResources::addDescriptorAttachment(
+DescriptorAttachmentHandle AttachmentResources::addDescriptorAttachment(
     const VkDescriptorSet descriptor,
     const VkDescriptorType type,
     const VkBufferUsageFlagBits usage,
