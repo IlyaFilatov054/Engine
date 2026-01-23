@@ -14,33 +14,36 @@ struct DrawCall {
     MeshBuffer* mesh;
 };
 
+typedef uint32_t RenderPassHandle;
 struct RenderGraphNode {
-    uint32_t renderPass;
-    std::vector<uint32_t> inputSamplers;
-    uint32_t outputFramebuffer;
+    RenderPassHandle renderPass;
+    std::vector<ReadAttachmentHandle> inputAttachments;
+    WriteAttachmentHandle outputAttachment;
     std::vector<VkDescriptorSet> constDescriptors;
-    std::vector<uint32_t> frameDescriptors;
+    std::vector<DescriptorAttachmentHandle> descriptorAttachments;
     std::vector<DrawCall> drawCalls;
     bool clearDrawCalls;
     std::vector<VkClearValue> clearValues;
 };
+
+typedef uint32_t NodeHandle;
 
 class RenderGraph {
 public:
     RenderGraph(const VkContext* context);
     ~RenderGraph();
 
-    const RenderPass* renderPass(uint32_t id) const;
-    uint32_t addRenderPass(
+    const RenderPass* renderPass(RenderPassHandle handle) const;
+    const RenderPassHandle addRenderPass(
         const std::vector<VkAttachmentDescription>& attachments,
         const std::vector<VkImageLayout>& attachmentLayouts,
         const VkExtent2D& extent, 
         const std::vector<ShaderDescription>& shaders,
         const std::vector<VkDescriptorSetLayout> usedLayouts
     );
-    uint32_t addNode(const RenderGraphNode& node, uint32_t step);
+    const NodeHandle addNode(const RenderGraphNode& node, uint32_t step);
     void execute(const VkCommandBuffer commandBuffer, const AttachmentResources* attachments);
-    void addDrawCall(uint32_t node, const DrawCall drawCall);
+    void addDrawCall(NodeHandle nodeHandle, const DrawCall drawCall);
 
 private:
     const VkContext* m_context;
@@ -48,5 +51,5 @@ private:
     std::vector<RenderGraphNode> m_nodes;
     std::map<uint32_t, std::vector<uint32_t>> m_steps;
 
-    void executeNode(uint32_t node, const VkCommandBuffer commandBuffer, const AttachmentResources* attachments);
+    void executeNode(NodeHandle node, const VkCommandBuffer commandBuffer, const AttachmentResources* attachments);
 };

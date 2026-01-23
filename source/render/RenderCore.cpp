@@ -215,11 +215,11 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_renderGraph->addNode(
         {
             .renderPass = renderPass,
-            .outputFramebuffer = offscreenWrite,
+            .outputAttachment = offscreenWrite,
             .constDescriptors = {
                 m_resourceManager->texturesDescriptor()
             },
-            .frameDescriptors = {ssbo, cameraDesc},
+            .descriptorAttachments = {ssbo, cameraDesc},
             .clearDrawCalls = true,
             .clearValues = {
                 {
@@ -232,8 +232,8 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_renderGraph->addNode(
         {
             .renderPass = secondRenderPass,
-            .inputSamplers = {offscreenRead},
-            .outputFramebuffer = swapchainFramebuffer,
+            .inputAttachments = {offscreenRead},
+            .outputAttachment = swapchainFramebuffer,
         }, 1
     );
 }
