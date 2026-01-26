@@ -47,7 +47,8 @@ private:
         Vertex{.position = {-1.0f, 1.0f, 1.0f}, .color = {1.0f, 1.0f, 1.0f, 1.0f}, .uv = {1.0f, 1.0f}},
     };
     [[deprecated]] std::vector<uint32_t> m_indices {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
-    [[deprecated]] Camera* camera = nullptr;
+    [[deprecated]] Camera* camera1 = nullptr;
+    [[deprecated]] Camera* camera2 = nullptr;
 
-    void recordCommandBuffer(const FrameResources* frameResources, const ImageResources* imageResources, const AttachmentResources* attachmentResources);
+    void recordCommandBuffer(const VkCommandBuffer buffer, uint32_t image);
 };

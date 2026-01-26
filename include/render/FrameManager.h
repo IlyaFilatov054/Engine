@@ -1,6 +1,5 @@
 #pragma once
 
-#include "render/AttachmentResources.h"
 #include "render/FrameResources.h"
 #include "render/ImageResources.h"
 #include "render/VkContext.h"
@@ -15,11 +14,9 @@ public:
 
     void createImageResources();
     void createFrameResources();
-    void createAttachmentResources();
 
     void nextFrame();
     const FrameResources* currentFrameResources() const;
-    AttachmentResources* attachmentResources(const uint32_t image) const;
     const ImageResources* imageResources(const uint32_t image) const;
    
     const uint32_t maxFrames() const;
@@ -33,6 +30,4 @@ private:
     const uint32_t m_maxFrames;
     std::vector<FrameResources*> m_frameResources;
     uint32_t m_currentFrame = 0;
-
-    std::vector<AttachmentResources*> m_attachmentResources;
 };

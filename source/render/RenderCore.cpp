@@ -28,7 +28,6 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_frameManager = new FrameManager(m_context, m_swapchain->images().size());
     m_frameManager->createFrameResources();
     m_frameManager->createImageResources();
-    m_frameManager->createAttachmentResources();
 
     std::vector<VkDescriptorSetLayoutBinding> ssboBindings = {
     VkDescriptorSetLayoutBinding {
@@ -61,7 +60,8 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         },
     };
     uint32_t cameraLayout = m_descriptorManager->createLayout(cameraBindings);
-    auto cameraDescriptors = m_descriptorManager->allocateSets(cameraLayout, m_frameManager->imageCount());
+    auto camera1Descriptors = m_descriptorManager->allocateSets(cameraLayout, m_frameManager->imageCount());
+    auto camera2Descriptors = m_descriptorManager->allocateSets(cameraLayout, m_frameManager->imageCount());
 
     std::vector<VkDescriptorSetLayoutBinding> offscreenBindings = {
         VkDescriptorSetLayoutBinding {
@@ -72,7 +72,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         },
     };
     uint32_t offscreenLayout = m_descriptorManager->createLayout(offscreenBindings);
-    auto offscreenDescriptor = m_descriptorManager->allocateSet(offscreenLayout);
+    auto offscreenDescriptors = m_descriptorManager->allocateSets(offscreenLayout, m_frameManager->imageCount());
 
     std::vector<VkDescriptorSetLayout> firstPassUsedDescriptorSetLayouts = {
         m_descriptorManager->layout(texturesLayout),
@@ -81,7 +81,9 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     };
 
     std::vector<VkDescriptorSetLayout> secondPassUsedDescriptorSetLayouts = {
-        m_descriptorManager->layout(offscreenLayout)
+        m_descriptorManager->layout(offscreenLayout),
+        m_descriptorManager->layout(ssboLayout),
+        m_descriptorManager->layout(cameraLayout)
     };
 
     m_resourceManager = new ResourceManager(m_context, textureDescriptor);
@@ -104,9 +106,15 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         );
         m_renderObjects.push_back({.mesh = 0, .renderData = id});
     }
+    auto id = m_resourceManager->addRenderData();
+    m_resourceManager->renderData(id).model = glm::mat4(1.0f);
+    m_renderObjects.push_back({.mesh = 0, .renderData = id});
 
-    camera = new Camera(m_context);
-    camera->aspect = (float)m_swapchain->extent().width / (float)m_swapchain->extent().height;
+    camera1 = new Camera(m_context);
+    camera1->aspect = (float)m_swapchain->extent().width / (float)m_swapchain->extent().height;
+
+    camera2 = new Camera(m_context);
+    camera2->aspect = (float)m_swapchain->extent().width / (float)m_swapchain->extent().height;
 
     m_shaderManager = new ShaderManager(m_context);
     m_shaderManager->createShaderModule(readFile("shaders/main.vert.spv"), "vert");
@@ -129,7 +137,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     };
     std::vector<ShaderDescription> shaderDescriptions2 = {
         {
-            .module = testVertexShader,
+            .module = vertexShader,
             .stage = VK_SHADER_STAGE_VERTEX_BIT,
         },
         {
@@ -170,70 +178,151 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         {
             .format = m_swapchain->format().format,
             .samples = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
             .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
             .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+        },
+        {
+            .format = VK_FORMAT_D32_SFLOAT,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
         }
     };
     std::vector<VkImageLayout> renderPass2AttachmentLayouts {
         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
     };
-    uint32_t renderPass = m_renderGraph->addRenderPass(renderPassAttachments, renderPassAttachmentLayouts, m_swapchain->extent(), shaderDescriptions, firstPassUsedDescriptorSetLayouts);
-    uint32_t secondRenderPass = m_renderGraph->addRenderPass(renderPass2Attachments, renderPass2AttachmentLayouts, m_swapchain->extent(), shaderDescriptions2, secondPassUsedDescriptorSetLayouts);
+    RenderPassHandle renderPass = m_renderGraph->addRenderPass(renderPassAttachments, renderPassAttachmentLayouts, m_swapchain->extent(), shaderDescriptions, firstPassUsedDescriptorSetLayouts);
+    RenderPassHandle secondRenderPass = m_renderGraph->addRenderPass(renderPass2Attachments, renderPass2AttachmentLayouts, m_swapchain->extent(), shaderDescriptions2, secondPassUsedDescriptorSetLayouts);
 
-    uint32_t swapchainFramebuffer = 0;
-    uint32_t ssbo = 0;
-    uint32_t cameraDesc = 0;
-    uint32_t offscreenRead = 0;
-    uint32_t offscreenWrite = 0;
-    for(uint32_t i = 0; i < m_frameManager->imageCount(); i++) {
-        auto present = m_frameManager->attachmentResources(i)->addImageAttachment(m_swapchain->images()[i]);
-        auto depth = m_frameManager->attachmentResources(i)->addImageAttachment(
-            VK_FORMAT_D32_SFLOAT,
-            VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-            { m_swapchain->extent().width, m_swapchain->extent().height, 1},
-            VK_IMAGE_ASPECT_DEPTH_BIT
-        );
-        auto color = m_frameManager->attachmentResources(i)->addImageAttachment(
-            m_swapchain->format().format,
-            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-            { m_swapchain->extent().width, m_swapchain->extent().height, 1},
-            VK_IMAGE_ASPECT_COLOR_BIT
-        );
-        
-        ssbo = m_frameManager->attachmentResources(i)->addDescriptorAttachment(ssboDescriptors[i], VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 1024);
-        cameraDesc = m_frameManager->attachmentResources(i)->addDescriptorAttachment(cameraDescriptors[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, camera->dataSize());
-        
-        swapchainFramebuffer = m_frameManager->attachmentResources(i)->addWriteAttachment(m_renderGraph->renderPass(secondRenderPass)->renderPass(), {m_swapchain->extent().width, m_swapchain->extent().height}, {present});
-        offscreenWrite = m_frameManager->attachmentResources(i)->addWriteAttachment(m_renderGraph->renderPass(renderPass)->renderPass(), {m_swapchain->extent().width, m_swapchain->extent().height}, {color, depth});
-        offscreenRead = m_frameManager->attachmentResources(i)->addReadAttachment(offscreenDescriptor, {color});
-    }
+    ImageAttachmentDescription swapchainImageDescription {
+        .externalImages = m_swapchain->images()
+    };
+    auto swapchainImageHandle = m_renderGraph->addImageAttachment(swapchainImageDescription);
     
+    ImageAttachmentDescription depthImageDescription {
+        .format = VK_FORMAT_D32_SFLOAT,
+        .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        .extent = {m_swapchain->extent().width, m_swapchain->extent().height, 1},
+        .aspect = VK_IMAGE_ASPECT_DEPTH_BIT
+    };
+    auto offscreenDepthImageHandle = m_renderGraph->addImageAttachment(depthImageDescription);
+    auto presentDepthImageHandle = m_renderGraph->addImageAttachment(depthImageDescription);
+
+    ImageAttachmentDescription offscreenColorImageDescription {
+        .format = m_swapchain->format().format,
+        .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        .extent = {m_swapchain->extent().width, m_swapchain->extent().height, 1},
+        .aspect = VK_IMAGE_ASPECT_COLOR_BIT
+    };
+    auto offscreenColorHandle = m_renderGraph->addImageAttachment(offscreenColorImageDescription);
+
+    WriteAttachmentDescription presentAttachmentDescription {
+        .renderPass = secondRenderPass,
+        .extent = m_swapchain->extent(),
+        .imageAttachments = {swapchainImageHandle, presentDepthImageHandle}
+    };
+    auto presentAttachment = m_renderGraph->addWriteAttachment(presentAttachmentDescription);
+
+    WriteAttachmentDescription offscreenWriteAttachmentDescription {
+        .renderPass = renderPass,
+        .extent = m_swapchain->extent(),
+        .imageAttachments = {offscreenColorHandle, offscreenDepthImageHandle}
+    };
+    auto offscreenWriteAttachment = m_renderGraph->addWriteAttachment(offscreenWriteAttachmentDescription);
+
+    ReadAttachmentDescription offscreenReadAttachmentDescription {
+        .perFrameDescriptors = offscreenDescriptors,
+        .imageAttachments = {offscreenColorHandle},
+    };
+    auto offscreenReadAttachment = m_renderGraph->addReadAttachment(offscreenReadAttachmentDescription);
+
+    DescriptorAttachmentDescription camera1AttachmentDescription {
+        .perFrameDescriptors = camera1Descriptors,
+        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
+        .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+        .bufferSize = camera1->dataSize(),
+        .update = [&](
+            const VkCommandBuffer commandBuffer,
+            const StagedBuffer* buffer
+        ) {
+            buffer->stagingBuffer().setData(camera1->data(), camera1->dataSize(), 0);
+            buffer->flush(commandBuffer);    
+        }
+    };
+    auto camera1Attachment = m_renderGraph->addDescriptorAttachment(camera1AttachmentDescription);
+
+DescriptorAttachmentDescription camera2AttachmentDescription {
+        .perFrameDescriptors = camera2Descriptors,
+        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
+        .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+        .bufferSize = camera1->dataSize(),
+        .update = [&](
+            const VkCommandBuffer commandBuffer,
+            const StagedBuffer* buffer
+        ) {
+            buffer->stagingBuffer().setData(camera2->data(), camera2->dataSize(), 0);
+            buffer->flush(commandBuffer);    
+        }
+    };
+    auto camera2Attachment = m_renderGraph->addDescriptorAttachment(camera2AttachmentDescription);
+
+    DescriptorAttachmentDescription ssboAttachmentDescription {
+        .perFrameDescriptors = ssboDescriptors,
+        .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 
+        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 
+        .bufferSize = 1024,
+        .update = [&](
+            const VkCommandBuffer commandBuffer,
+            const StagedBuffer* buffer
+        ) {
+            buffer->stagingBuffer().setData(m_resourceManager->renderData(), m_resourceManager->renderDataSize(), 0);
+            buffer->flush(commandBuffer);
+        }
+    };
+    auto ssboAttachment = m_renderGraph->addDescriptorAttachment(ssboAttachmentDescription);
+    
+    m_renderGraph->createAttachmentResources(m_frameManager->imageCount());
+
     m_renderGraph->addNode(
         {
             .renderPass = renderPass,
-            .outputAttachment = offscreenWrite,
+            .outputAttachment = offscreenWriteAttachment,
             .constDescriptors = {
                 m_resourceManager->texturesDescriptor()
             },
-            .descriptorAttachments = {ssbo, cameraDesc},
-            .clearDrawCalls = true,
+            .descriptorAttachments = {ssboAttachment, camera1Attachment},
             .clearValues = {
                 {
-                    {.color = {0.0f, 0.0f, 0.0f, 1.0f}},
+                    {.color = {1.0f, 0.0f, 0.0f, 1.0f}},
                     {.depthStencil = {1.0f, 0}},
                 }
-            }
+            },
+            .frameRenderData = 0
         }, 0
     );
     m_renderGraph->addNode(
         {
             .renderPass = secondRenderPass,
-            .inputAttachments = {offscreenRead},
-            .outputAttachment = swapchainFramebuffer,
+            .inputAttachments = {offscreenReadAttachment},
+            .outputAttachment = presentAttachment,
+            .descriptorAttachments = {ssboAttachment, camera2Attachment},
+            .descriptorOrder = {DescriptorStage::Input, DescriptorStage::Frame, DescriptorStage::Const},
+            .clearValues = {
+                {
+                    {.color = {0.0f, 1.0f, 0.0f, 1.0f}},
+                    {.depthStencil = {1.0f, 0}},
+                }
+            },
+            .frameRenderData = 1
         }, 1
     );
 }
@@ -241,7 +330,8 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
 RenderCore::~RenderCore(){
     vkQueueWaitIdle(m_context->graphicsQueue());
     
-    delete camera;
+    delete camera1;
+    delete camera2;
     delete m_resourceManager;
     delete m_shaderManager;
     delete m_frameManager;
@@ -253,8 +343,10 @@ float c = 0;
 void RenderCore::drawFrame() {
     c += 0.0001f;
     //camera->position.y += 5 * std::sin(c);
-    camera->position.x = 4 * std::cos(c);
-    camera->position.z = 4 * std::sin(c);
+    camera2->position.x = 4 * std::cos(c);
+    camera2->position.z = 4 * std::sin(c);
+    camera1->position.x = 4 * std::cos(c);
+    camera1->position.z = 4 * std::sin(c);
     //camera->position.y = 4 * std::sin(0.333f * c);
 
     m_frameManager->currentFrameResources()->waitFence();
@@ -270,7 +362,7 @@ void RenderCore::drawFrame() {
     //validateVkResult(res, "vkAcquireNextImageKHR");
     
     vkResetCommandBuffer(m_frameManager->currentFrameResources()->commandBuffer(), 0);
-    recordCommandBuffer(m_frameManager->currentFrameResources(), m_frameManager->imageResources(imageIndex), m_frameManager->attachmentResources(imageIndex));
+    recordCommandBuffer(m_frameManager->currentFrameResources()->commandBuffer(), imageIndex);
 
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSubmitInfo submitInfo {
@@ -298,24 +390,40 @@ void RenderCore::drawFrame() {
     m_frameManager->nextFrame();
 }
 
-void RenderCore::recordCommandBuffer(const FrameResources* frameResources, const ImageResources* imageResources, const AttachmentResources* attachmentResources) {
+void RenderCore::recordCommandBuffer(const VkCommandBuffer buffer, uint32_t image) {
     VkCommandBufferBeginInfo beginInfo {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
     };
-    vkBeginCommandBuffer(frameResources->commandBuffer(), &beginInfo);
-    
-    attachmentResources->descriptorAttachment(0).buffer->stagingBuffer().setData(m_resourceManager->renderData(), m_resourceManager->renderDataSize(), 0);
-    attachmentResources->descriptorAttachment(0).buffer->flush(frameResources->commandBuffer());
-
-    attachmentResources->descriptorAttachment(1).buffer->stagingBuffer().setData(camera->data(), camera->dataSize(), 0);
-    attachmentResources->descriptorAttachment(1).buffer->flush(frameResources->commandBuffer());
+    vkBeginCommandBuffer(buffer, &beginInfo);
 
     for(const auto& r : m_renderObjects) {
-        m_renderGraph->addDrawCall(0, {
-            .pushConstant = r.renderData,
-            .mesh = m_resourceManager->mesh(r.mesh)
+        if(r.renderData == 10) continue;
+        m_renderGraph->addDrawCall(0, [&](
+            const VkCommandBuffer commandBuffer,
+            const RenderPass* renderPass,
+            const AttachmentResources* attachments
+        ) {
+            vkCmdPushConstants(commandBuffer, renderPass->pipeline().layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(uint32_t), &r.renderData);
+            VkDeviceSize offsets[] = {0};
+            vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_resourceManager->mesh(r.mesh)->vertexBuffer(), offsets);
+            vkCmdBindIndexBuffer(commandBuffer, m_resourceManager->mesh(r.mesh)->indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(commandBuffer, m_resourceManager->mesh(r.mesh)->indicesCount(), 1, 0, 0, 0);
         });
     }
-    m_renderGraph->execute(frameResources->commandBuffer(), attachmentResources);
-    vkEndCommandBuffer(frameResources->commandBuffer());
+
+    m_renderGraph->addDrawCall(1, [&](
+        const VkCommandBuffer commandBuffer,
+        const RenderPass* renderPass,
+        const AttachmentResources* attachments
+    ) {
+        uint32_t pushConstants[] = {10};
+        vkCmdPushConstants(commandBuffer, renderPass->pipeline().layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(uint32_t), pushConstants);
+        VkDeviceSize offsets[] = {0};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_resourceManager->mesh(0)->vertexBuffer(), offsets);
+        vkCmdBindIndexBuffer(commandBuffer, m_resourceManager->mesh(0)->indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(commandBuffer, m_resourceManager->mesh(0)->indicesCount(), 1, 0, 0, 0);
+    });
+
+    m_renderGraph->execute(buffer, image);
+    vkEndCommandBuffer(buffer);
 }
