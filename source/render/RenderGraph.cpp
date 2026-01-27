@@ -136,13 +136,8 @@ void RenderGraph::executeNode(NodeHandle nodeHandle, const VkCommandBuffer comma
         auto inputAttachment = attachments->readAttachment(inputAttachmentHandle);
         for (uint32_t i = 0; i < inputAttachment.images.size(); i++) {
             auto inputAttachmentImage = attachments->imageAttachment(inputAttachment.images[i]);
-            inputAttachmentImage.image->setLayout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-            inputAttachmentImage.image->setPipelineStage(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-            inputAttachmentImage.image->setAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
             inputAttachmentImage.image->transitionLayout(
                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                VK_ACCESS_SHADER_READ_BIT,
                 commandBuffer
             );
         }
@@ -191,4 +186,10 @@ void RenderGraph::executeNode(NodeHandle nodeHandle, const VkCommandBuffer comma
     }
 
     vkCmdEndRenderPass(commandBuffer);
+    
+    for(uint32_t i = 0; i < attachments->writeAttachment(node.outputAttachment).images.size(); i++) {
+        auto imageHandle = attachments->writeAttachment(node.outputAttachment).images[i];
+        auto image = attachments->imageAttachment(imageHandle).image;
+        image->forceLayout(m_renderPasses[node.renderPass]->outputLayouts()[i]);
+    }
 }

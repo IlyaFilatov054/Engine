@@ -17,6 +17,7 @@ RenderPass::RenderPass(
     VkAttachmentReference depthReference;
     int depthAttachment = -1;
     for(uint32_t i = 0; i < attachments.size(); i++) {
+        m_outputLayouts.push_back(attachmentLayouts[i]);
         if(attachments[i].format == VK_FORMAT_D32_SFLOAT) {
             depthAttachment = static_cast<uint32_t>(i);
             depthReference = {
@@ -78,4 +79,8 @@ const Pipeline& RenderPass::pipeline() const {
 
 const VkExtent2D& RenderPass::extent() const {
     return m_extent;
+}
+
+const std::vector<VkImageLayout>& RenderPass::outputLayouts() const {
+    return m_outputLayouts;
 }

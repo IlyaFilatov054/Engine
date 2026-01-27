@@ -343,8 +343,8 @@ float c = 0;
 void RenderCore::drawFrame() {
     c += 0.0001f;
     //camera->position.y += 5 * std::sin(c);
-    camera2->position.x = 4 * std::cos(c);
-    camera2->position.z = 4 * std::sin(c);
+    camera2->position.x = 3 * std::cos(c);
+    camera2->position.z = 3 * std::sin(c);
     camera1->position.x = 4 * std::cos(c);
     camera1->position.z = 4 * std::sin(c);
     //camera->position.y = 4 * std::sin(0.333f * c);

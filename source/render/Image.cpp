@@ -84,28 +84,24 @@ void Image::createView(const VkImageAspectFlags aspect) {
 }
 
 void Image::transitionLayout(
-    const VkImageLayout layout,
-    const VkPipelineStageFlags stage,
-    const VkAccessFlags accessMask
-) const {
+    const VkImageLayout newLayout
+) {
     executeOnGpu(m_context, [&](const VkCommandBuffer commandBuffer) {
-        transitionLayout(layout, stage, accessMask, commandBuffer);
+        transitionLayout(newLayout, commandBuffer);
     });
 }
 
 void Image::transitionLayout(
-        const VkImageLayout layout,
-        const VkPipelineStageFlags stage,
-        const VkAccessFlags accessMask,
+        const VkImageLayout newLayout,
         const VkCommandBuffer commandBuffer
-) const {
+) {
     VkImageMemoryBarrier barrier {
         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .srcAccessMask = m_accessMask,
-        .dstAccessMask = accessMask,
+        .srcAccessMask = ACCESS_MASK_TABLE.at(m_layout),
+        .dstAccessMask = ACCESS_MASK_TABLE.at(newLayout),
 
         .oldLayout = m_layout,
-        .newLayout = layout,
+        .newLayout = newLayout,
         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .image = m_image,
@@ -117,7 +113,8 @@ void Image::transitionLayout(
             .layerCount = 1
         },
     };
-    vkCmdPipelineBarrier(commandBuffer, m_stage, stage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+    vkCmdPipelineBarrier(commandBuffer, PIPELINE_STAGE_TABLE.at(m_layout), PIPELINE_STAGE_TABLE.at(newLayout), 0, 0, nullptr, 0, nullptr, 1, &barrier);
+    m_layout = newLayout;
 }
 
 void Image::copyBufferToImage(const AbstractBuffer* buffer) {
@@ -143,34 +140,10 @@ void Image::copyBufferToImage(const AbstractBuffer* buffer) {
     });
 }
 
-void Image::setLayout(VkImageLayout layout) {
+void Image::forceLayout(VkImageLayout layout) {
     m_layout = layout;
 }
 
 VkImageLayout Image::layout() const {
     return m_layout;
-}
-
-void Image::setPipelineStage(VkPipelineStageFlags stage) {
-    m_stage = stage;
-}
-
-VkPipelineStageFlags Image::pipelineStage() const {
-    return m_stage;
-}
-
-void Image::setAccessMask(VkAccessFlags mask) {
-    m_accessMask = mask;
-}
-
-VkAccessFlags Image::accessMask() const {
-    return m_accessMask;
-}
-
-void Image::setAspect(VkImageAspectFlags aspect) {
-    m_aspect = aspect;
-}
-
-VkImageAspectFlags Image::aspect() const {
-    return m_aspect;
 }

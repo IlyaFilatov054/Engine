@@ -27,9 +27,9 @@ Pipeline::Pipeline(const VkContext* context, const VkExtent2D& extent,
 
     VkViewport viewport {
         .x = 0.0f,
-        .y = (float)extent.height, 
+        .y = 0.0f, 
         .width = (float)extent.width,
-        .height = -(float)extent.height,
+        .height = (float)extent.height,
         .minDepth = 0.0f,
         .maxDepth = 1.0f,
     };
@@ -52,8 +52,8 @@ Pipeline::Pipeline(const VkContext* context, const VkExtent2D& extent,
         .depthClampEnable = VK_FALSE,
         .rasterizerDiscardEnable = VK_FALSE,
         .polygonMode = VK_POLYGON_MODE_FILL,
-        .cullMode = VK_CULL_MODE_NONE,
-        .frontFace = VK_FRONT_FACE_CLOCKWISE,
+        .cullMode = VK_CULL_MODE_BACK_BIT,
+        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .depthBiasEnable  = VK_FALSE,
         .lineWidth = 1.0f,
     };

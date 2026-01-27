@@ -1,8 +1,27 @@
 #pragma once
 
 #include "render/VkContext.h"
+#include <map>
 #include <vulkan/vulkan_core.h>
 #include "render/AbstractBuffer.h"
+
+const std::map<VkImageLayout, VkPipelineStageFlags> PIPELINE_STAGE_TABLE {
+    {VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT},
+    {VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT},
+    {VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT},
+    {VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT},
+    {VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT},
+    {VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT},
+};
+
+const std::map<VkImageLayout, VkAccessFlags> ACCESS_MASK_TABLE {
+    {VK_IMAGE_LAYOUT_UNDEFINED, 0},
+    {VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT},
+    {VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT},
+    {VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ACCESS_SHADER_READ_BIT},
+    {VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT},
+    {VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT},
+};
 
 class Image {
 public:
@@ -17,26 +36,16 @@ public:
     void createView(const VkImageAspectFlags aspect);
     
     void transitionLayout(
-        const VkImageLayout layout,
-        const VkPipelineStageFlags stage,
-        const VkAccessFlags accessMask
-    ) const;
+        const VkImageLayout newLayout
+    );
     void transitionLayout(
-        const VkImageLayout layout,
-        const VkPipelineStageFlags stage,
-        const VkAccessFlags accessMask,
+        const VkImageLayout newLayout,
         const VkCommandBuffer commandBuffer
-    ) const;
+    );
     void copyBufferToImage(const AbstractBuffer* buffer);
 
-    void setLayout(VkImageLayout layout);
+    void forceLayout(VkImageLayout layout);
     VkImageLayout layout() const;
-    void setPipelineStage(VkPipelineStageFlags stage);
-    VkPipelineStageFlags pipelineStage() const;
-    void setAccessMask(VkAccessFlags mask);
-    VkAccessFlags accessMask() const;
-    void setAspect(VkImageAspectFlags aspect);
-    VkImageAspectFlags aspect() const;
 private:
     const VkContext* m_context;
     const VkFormat m_format;
@@ -48,7 +57,5 @@ private:
     VkExtent3D m_extent;
 
     VkImageLayout m_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    VkPipelineStageFlags m_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    VkAccessFlags m_accessMask = 0;
     VkImageAspectFlags m_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
 };

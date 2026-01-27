@@ -19,10 +19,12 @@ public:
     const VkRenderPass& renderPass() const;
     const Pipeline& pipeline() const;
     const VkExtent2D& extent() const;
+    const std::vector<VkImageLayout>& outputLayouts() const;
 private:
     const VkContext* m_context;
     const VkExtent2D m_extent;
 
     VkRenderPass m_renderPass = VK_NULL_HANDLE;
     Pipeline* m_pipeline = nullptr;
+    std::vector<VkImageLayout> m_outputLayouts;
 };

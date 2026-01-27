@@ -20,6 +20,7 @@ uint32_t Camera::dataSize() const {
 void* Camera::data() {
     m_view = glm::lookAt(position, target, up);
     m_projection = glm::perspective(glm::radians(fov), aspect, near, far);
+    m_projection[1][1] *= -1;
     m_data.clear();
     m_data = {m_view, m_projection};
     return m_data.data();
