@@ -1,6 +1,5 @@
 #pragma once
 #include <cstdint>
-#include <stdexcept>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 #include "render/VkContext.h"

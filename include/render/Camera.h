@@ -1,13 +1,15 @@
 #pragma once
 
+#include <cstdint>
 #include <glm/glm.hpp>
 #include <glm/fwd.hpp>
-#include "render/MappedBuffer.h"
+#include <vector>
+#include <vulkan/vulkan_core.h>
 #include "render/VkContext.h"
 
 class Camera {
 public:
-    Camera(const VkContext* context, const VkDescriptorSet descriptorSet);
+    Camera(const VkContext* context);
     ~Camera();
 
     glm::vec3 position{};
@@ -18,11 +20,11 @@ public:
     float near{0.01f};
     float far{100.0f};
 
-    void update();
+    uint32_t dataSize() const;
+    void* data();
 private:
+    const VkContext* m_context;
     glm::mat4 m_view;
     glm::mat4 m_projection;
-    MappedBuffer m_buffer;
-    const VkContext* m_context;
-    const VkDescriptorSet m_descriptorSet;
+    std::vector<glm::mat4> m_data;
 };

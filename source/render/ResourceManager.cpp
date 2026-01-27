@@ -102,3 +102,7 @@ const uint32_t ResourceManager::renderDataSize() const {
 void* ResourceManager::renderData() {
     return m_ssboData.data();
 }
+
+const VkDescriptorSet& ResourceManager::texturesDescriptor() const {
+    return m_textureDescriptor;
+}

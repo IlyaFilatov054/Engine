@@ -4,19 +4,8 @@
 #include <algorithm>
 #include <cstdint>
 
-FrameManager::FrameManager(const VkContext* context, const Swapchain* swapchain, 
-    const VkRenderPass renderPass, const DescriptorManager* descriptorManager) :
-m_context(context),
-m_swapchain(swapchain),
-m_renderPass(renderPass),
-m_maxFrames(std::min(2u, (uint32_t)swapchain->images().size())) {
-    for(const auto& i : m_swapchain->images()) {
-        m_imageResources.push_back(new ImageResources(m_context, m_swapchain, i->view(), m_renderPass));   
-    }
-    for(uint32_t i = 0; i < m_maxFrames; i++) { 
-        const auto descrptor = descriptorManager->allocateStorageDescriptor();
-        m_frameResources.push_back(new FrameResources(m_context, descrptor));
-    }
+FrameManager::FrameManager(const VkContext* context, uint32_t imageCount) :
+m_context(context), m_maxFrames(std::min(2u, imageCount)), m_imageCount(imageCount) {
 }
 
 FrameManager::~FrameManager() {
@@ -24,14 +13,34 @@ FrameManager::~FrameManager() {
     for(const auto& r : m_frameResources) delete r;
 }
 
+void FrameManager::createImageResources() {
+    for(uint32_t i = 0; i < m_imageCount; i++) {
+        m_imageResources.push_back(new ImageResources(m_context));   
+    }
+}
+
+void FrameManager::createFrameResources() {
+    for(uint32_t i = 0; i < m_maxFrames; i++) {
+        m_frameResources.push_back(new FrameResources(m_context));
+    }
+}
+
 void FrameManager::nextFrame() {
     m_currentFrame = (m_currentFrame + 1) % m_maxFrames;
 }
 
-const FrameResources& FrameManager::currentFrameResources() const {
-    return *m_frameResources[m_currentFrame];
+const FrameResources* FrameManager::currentFrameResources() const {
+    return m_frameResources[m_currentFrame];
 }
 
-const ImageResources& FrameManager::imageResources(const uint32_t image) const {
-    return *m_imageResources[image];
+const ImageResources* FrameManager::imageResources(const uint32_t image) const {
+    return m_imageResources[image];
+}
+
+const uint32_t FrameManager::maxFrames() const {
+    return m_maxFrames;
+}
+
+const uint32_t FrameManager::imageCount() const {
+    return m_imageCount;
 }

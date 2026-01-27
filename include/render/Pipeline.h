@@ -1,26 +1,25 @@
 #pragma once
 
-#include "render/DescriptorManager.h"
-#include "render/ShaderManager.h"
-#include "render/Swapchain.h"
 #include "render/VkContext.h"
+#include <vector>
 #include <vulkan/vulkan_core.h>
+
+struct ShaderDescription {
+    VkShaderModule module;
+    VkShaderStageFlagBits stage;
+};
 
 class Pipeline {
 public:
-    Pipeline(const VkContext* context, const Swapchain* swapchain, 
-        const VkRenderPass renderPass, const ShaderManager* shaderManager,
-        const DescriptorManager* descriptorManager);
+    Pipeline(const VkContext* context, const VkExtent2D& extent, 
+        const VkRenderPass renderPass, const std::vector<ShaderDescription>& shaders,
+        const std::vector<VkDescriptorSetLayout> usedLayouts);
     ~Pipeline();
     
     const VkPipelineLayout& layout() const;
     const VkPipeline& pipeline() const;
 private:
     const VkContext* m_context;
-    const Swapchain* m_swapchain;
-    const VkRenderPass m_renderPass;
-    const ShaderManager* m_shaderManager;
-    const DescriptorManager* m_descriptorManager;
 
     VkPipelineLayout m_layout = VK_NULL_HANDLE;
     VkPipeline m_pipeline = VK_NULL_HANDLE;

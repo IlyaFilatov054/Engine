@@ -2,35 +2,13 @@
 #include "render/Vertex.h"
 #include "render/VkUtils.h"
 #include <cstdint>
+#include <vector>
 #include <vulkan/vulkan_core.h>
 
-Pipeline::Pipeline(const VkContext* context, const Swapchain* swapchain, 
-    const VkRenderPass renderPass, const ShaderManager* shaderManager, 
-    const DescriptorManager* descriptorManager)
-: m_context(context),
-  m_swapchain(swapchain),  
-  m_renderPass(renderPass), 
-  m_shaderManager(shaderManager), 
-  m_descriptorManager(descriptorManager){
-
-    auto vertexShader = m_shaderManager->getShaderModule("vert");
-    auto fragmentShader = m_shaderManager->getShaderModule("frag");
-
-    VkPipelineShaderStageCreateInfo shaderStages[] = {
-        {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .stage = VK_SHADER_STAGE_VERTEX_BIT,
-            .module = vertexShader,
-            .pName = "main"
-        },
-        {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-            .module = fragmentShader,
-            .pName = "main"
-        }
-    };
-
+Pipeline::Pipeline(const VkContext* context, const VkExtent2D& extent, 
+    const VkRenderPass renderPass, const std::vector<ShaderDescription>& shaders, 
+    const std::vector<VkDescriptorSetLayout> usedLayouts)
+: m_context(context) {
     auto vertexBindingDescription = Vertex::bindingDescription();
     auto vertexAttributeDesriptions = Vertex::attributeDescriptions();
     VkPipelineVertexInputStateCreateInfo vertexinput {
@@ -49,16 +27,16 @@ Pipeline::Pipeline(const VkContext* context, const Swapchain* swapchain,
 
     VkViewport viewport {
         .x = 0.0f,
-        .y = (float)m_swapchain->extent().height, 
-        .width = (float)m_swapchain->extent().width,
-        .height = -(float)m_swapchain->extent().height,
+        .y = 0.0f, 
+        .width = (float)extent.width,
+        .height = (float)extent.height,
         .minDepth = 0.0f,
         .maxDepth = 1.0f,
     };
 
     VkRect2D scissor {
         .offset = {0, 0},
-        .extent = m_swapchain->extent()
+        .extent = extent
     };
 
     VkPipelineViewportStateCreateInfo viewportState {
@@ -74,8 +52,8 @@ Pipeline::Pipeline(const VkContext* context, const Swapchain* swapchain,
         .depthClampEnable = VK_FALSE,
         .rasterizerDiscardEnable = VK_FALSE,
         .polygonMode = VK_POLYGON_MODE_FILL,
-        .cullMode = VK_CULL_MODE_NONE,
-        .frontFace = VK_FRONT_FACE_CLOCKWISE,
+        .cullMode = VK_CULL_MODE_BACK_BIT,
+        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .depthBiasEnable  = VK_FALSE,
         .lineWidth = 1.0f,
     };
@@ -116,15 +94,11 @@ Pipeline::Pipeline(const VkContext* context, const Swapchain* swapchain,
         .offset = 0,
         .size = sizeof(uint32_t),
     };
-    VkDescriptorSetLayout layouts[] = {
-        m_descriptorManager->cameraLayout(), 
-        m_descriptorManager->ssboLayout(),
-        m_descriptorManager->texturesLayout()
-    };
+
     VkPipelineLayoutCreateInfo pipelaneLayoutInfo {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 3,
-        .pSetLayouts = layouts,
+        .setLayoutCount = static_cast<uint32_t>(usedLayouts.size()),
+        .pSetLayouts = usedLayouts.data(),
         .pushConstantRangeCount = 1,
         .pPushConstantRanges = &pushRange
     };
@@ -132,10 +106,20 @@ Pipeline::Pipeline(const VkContext* context, const Swapchain* swapchain,
     auto res = vkCreatePipelineLayout(m_context->device(), &pipelaneLayoutInfo, nullptr, &m_layout);
     validateVkResult(res, "vkCreatePipelineLayout");
 
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+    for(const auto& s : shaders) {
+        shaderStages.push_back(VkPipelineShaderStageCreateInfo {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = s.stage,
+            .module = s.module,
+            .pName = "main"
+        });
+        
+    }
     VkGraphicsPipelineCreateInfo pipelineInfo {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-        .stageCount = 2,
-        .pStages = shaderStages,
+        .stageCount = static_cast<uint32_t>(shaderStages.size()),
+        .pStages = shaderStages.data(),
         .pVertexInputState = &vertexinput,
         .pInputAssemblyState = &inputAssembly,
         .pViewportState = &viewportState,
@@ -144,7 +128,7 @@ Pipeline::Pipeline(const VkContext* context, const Swapchain* swapchain,
         .pDepthStencilState = &depth,
         .pColorBlendState = &colorBlend,
         .layout = m_layout,
-        .renderPass = m_renderPass,
+        .renderPass = renderPass,
         .subpass = 0,
     };
 
