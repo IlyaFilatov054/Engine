@@ -34,7 +34,7 @@ DescriptorManager::~DescriptorManager() {
     vkDestroyDescriptorPool(m_context->device(), m_pool, nullptr);
 }
 
-uint32_t DescriptorManager::createLayout(const std::vector<VkDescriptorSetLayoutBinding>& bindings) {
+DescriptorSetLayoutHandle DescriptorManager::createLayout(const std::vector<VkDescriptorSetLayoutBinding>& bindings) {
     VkDescriptorSetLayout layout = VK_NULL_HANDLE;
     VkDescriptorSetLayoutCreateInfo cameraLayoutInfo {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -46,15 +46,15 @@ uint32_t DescriptorManager::createLayout(const std::vector<VkDescriptorSetLayout
     return m_layouts.size() - 1;
 }
 
-const VkDescriptorSetLayout& DescriptorManager::layout(uint32_t id) const {
+VkDescriptorSetLayout DescriptorManager::layout(uint32_t id) const {
     return m_layouts[id];
 }
 
-std::vector<VkDescriptorSet> DescriptorManager::allocateSets(uint32_t layout, uint32_t count) const {
+std::vector<VkDescriptorSet> DescriptorManager::allocateSets(DescriptorSetLayoutHandle layoutHandle, uint32_t count) const {
     std::vector<VkDescriptorSet> sets;
     sets.resize(count);
     std::vector<VkDescriptorSetLayout> layouts;
-    for(uint32_t i = 0; i < count; i++) layouts.push_back(m_layouts[layout]);
+    for(uint32_t i = 0; i < count; i++) layouts.push_back(m_layouts[layoutHandle]);
     VkDescriptorSetAllocateInfo ssboSetAllocInfo {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
         .descriptorPool = m_pool,
@@ -65,6 +65,6 @@ std::vector<VkDescriptorSet> DescriptorManager::allocateSets(uint32_t layout, ui
     return sets;
 }
 
-VkDescriptorSet DescriptorManager::allocateSet(uint32_t layout) const {
-    return allocateSets(layout, 1)[0];
+VkDescriptorSet DescriptorManager::allocateSet(DescriptorSetLayoutHandle layoutHandle) const {
+    return allocateSets(layoutHandle, 1)[0];
 }
