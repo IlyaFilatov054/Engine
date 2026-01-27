@@ -9,7 +9,7 @@ m_indexBuffer(context, sizeof(uint32_t) * indices, VK_BUFFER_USAGE_INDEX_BUFFER_
 
 }
 
-const VkBuffer& MeshBuffer::vertexBuffer() const {
+VkBuffer MeshBuffer::vertexBuffer() const {
     return m_vertexBuffer.buffer();
 }
 
@@ -18,7 +18,7 @@ void MeshBuffer::setVertexData(void* data) {
     m_vertexBuffer.flushNow();
 }
 
-const VkBuffer& MeshBuffer::indexBuffer() const {
+VkBuffer MeshBuffer::indexBuffer() const {
     return m_indexBuffer.buffer();
 }
 

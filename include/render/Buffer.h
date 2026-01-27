@@ -10,7 +10,7 @@ public:
     Buffer(const VkContext* context, uint32_t size, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryFlags);
     virtual ~Buffer() override;
 
-    const VkBuffer& buffer() const override;    
+    VkBuffer buffer() const override;    
 protected:
     VkBuffer m_buffer;
     VkDeviceMemory m_memory;

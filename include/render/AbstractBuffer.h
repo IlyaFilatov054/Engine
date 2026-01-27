@@ -11,7 +11,7 @@ public:
     virtual ~AbstractBuffer() = default;
 
     const uint32_t size() const {return m_size;};
-    virtual const VkBuffer& buffer() const = 0;
+    virtual VkBuffer buffer() const = 0;
 
 protected:
     const VkContext* m_context;

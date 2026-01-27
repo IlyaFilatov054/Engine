@@ -60,7 +60,7 @@ struct ReadAttachmentDescription {
 
 typedef std::function<void(
     const VkCommandBuffer commandBuffer,
-    const StagedBuffer* buffer
+    StagedBuffer* buffer
 )> DescriptorUpdate;
 
 struct DescriptorAttachmentDescription {

@@ -252,7 +252,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         .bufferSize = camera1->dataSize(),
         .update = [&](
             const VkCommandBuffer commandBuffer,
-            const StagedBuffer* buffer
+            StagedBuffer* buffer
         ) {
             buffer->stagingBuffer().setData(camera1->data(), camera1->dataSize(), 0);
             buffer->flush(commandBuffer);    
@@ -267,7 +267,7 @@ DescriptorAttachmentDescription camera2AttachmentDescription {
         .bufferSize = camera1->dataSize(),
         .update = [&](
             const VkCommandBuffer commandBuffer,
-            const StagedBuffer* buffer
+            StagedBuffer* buffer
         ) {
             buffer->stagingBuffer().setData(camera2->data(), camera2->dataSize(), 0);
             buffer->flush(commandBuffer);    
@@ -282,7 +282,7 @@ DescriptorAttachmentDescription camera2AttachmentDescription {
         .bufferSize = 1024,
         .update = [&](
             const VkCommandBuffer commandBuffer,
-            const StagedBuffer* buffer
+            StagedBuffer* buffer
         ) {
             buffer->stagingBuffer().setData(m_resourceManager->renderData(), m_resourceManager->renderDataSize(), 0);
             buffer->flush(commandBuffer);
@@ -405,7 +405,8 @@ void RenderCore::recordCommandBuffer(const VkCommandBuffer buffer, uint32_t imag
         ) {
             vkCmdPushConstants(commandBuffer, renderPass->pipeline().layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(uint32_t), &r.renderData);
             VkDeviceSize offsets[] = {0};
-            vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_resourceManager->mesh(r.mesh)->vertexBuffer(), offsets);
+            VkBuffer buffers[] = {m_resourceManager->mesh(r.mesh)->vertexBuffer()};
+            vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
             vkCmdBindIndexBuffer(commandBuffer, m_resourceManager->mesh(r.mesh)->indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
             vkCmdDrawIndexed(commandBuffer, m_resourceManager->mesh(r.mesh)->indicesCount(), 1, 0, 0, 0);
         });
@@ -419,7 +420,8 @@ void RenderCore::recordCommandBuffer(const VkCommandBuffer buffer, uint32_t imag
         uint32_t pushConstants[] = {10};
         vkCmdPushConstants(commandBuffer, renderPass->pipeline().layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(uint32_t), pushConstants);
         VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_resourceManager->mesh(0)->vertexBuffer(), offsets);
+        VkBuffer buffers[] = {m_resourceManager->mesh(0)->vertexBuffer()};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
         vkCmdBindIndexBuffer(commandBuffer, m_resourceManager->mesh(0)->indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
         vkCmdDrawIndexed(commandBuffer, m_resourceManager->mesh(0)->indicesCount(), 1, 0, 0, 0);
     });

@@ -21,25 +21,25 @@ AbstractBuffer(
 
 }
 
-const VkBuffer& StagedBuffer::buffer() const {
+VkBuffer StagedBuffer::buffer() const {
     return  m_buffer.buffer();
 }
 
-const MappedBuffer& StagedBuffer::stagingBuffer() const {
+MappedBuffer& StagedBuffer::stagingBuffer() {
     return m_stagingBuffer;
 }
 
-void StagedBuffer::flushNow(uint32_t offset, uint32_t size) const {
+void StagedBuffer::flushNow(uint32_t offset, uint32_t size) {
     executeOnGpu(m_context, [&](const VkCommandBuffer commandBuffer) {
         flush(offset, size, commandBuffer);
     });
 }
 
-void StagedBuffer::flushNow() const {
+void StagedBuffer::flushNow() {
     flushNow(0, m_size);
 }
 
-void StagedBuffer::flush(uint32_t offset, uint32_t size, const VkCommandBuffer& commandBuffer) const {
+void StagedBuffer::flush(uint32_t offset, uint32_t size, const VkCommandBuffer& commandBuffer) {
     VkBufferCopy copyRegion {
             .srcOffset = offset,
             .dstOffset = offset,
@@ -48,6 +48,6 @@ void StagedBuffer::flush(uint32_t offset, uint32_t size, const VkCommandBuffer& 
     vkCmdCopyBuffer(commandBuffer, m_stagingBuffer.buffer(), m_buffer.buffer(), 1, &copyRegion);
 }
 
-void StagedBuffer::flush(const VkCommandBuffer& commandBuffer) const {
+void StagedBuffer::flush(const VkCommandBuffer& commandBuffer) {
     flush(0, m_size, commandBuffer);
 }

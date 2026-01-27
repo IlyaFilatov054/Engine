@@ -10,11 +10,11 @@ public:
     MeshBuffer(const VkContext* context, const uint32_t vertexCount, const uint32_t indicesCount);
     ~MeshBuffer() = default;
 
-    const VkBuffer& vertexBuffer() const;
+    VkBuffer vertexBuffer() const;
     void setVertexData(void* data);
     const uint32_t vertexBufferSize() const;
 
-    const VkBuffer& indexBuffer() const;
+    VkBuffer indexBuffer() const;
     void setIndexData(void* data);
     const uint32_t indexBufferSize() const;
     const uint32_t indicesCount() const;

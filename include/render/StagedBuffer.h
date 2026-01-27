@@ -10,12 +10,12 @@ public:
     StagedBuffer(const VkContext* context, uint32_t size, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryFlags);
     ~StagedBuffer() override = default;
 
-    const VkBuffer& buffer() const override;
-    const MappedBuffer& stagingBuffer() const;
-    void flushNow(uint32_t offset, uint32_t size) const;
-    void flushNow() const;
-    void flush(uint32_t offset, uint32_t size, const VkCommandBuffer& commandBuffer) const;
-    void flush(const VkCommandBuffer& commandBuffer) const;
+    VkBuffer buffer() const override;
+    MappedBuffer& stagingBuffer();
+    void flushNow(uint32_t offset, uint32_t size);
+    void flushNow();
+    void flush(uint32_t offset, uint32_t size, const VkCommandBuffer& commandBuffer);
+    void flush(const VkCommandBuffer& commandBuffer);
     
 private:
     Buffer m_buffer;

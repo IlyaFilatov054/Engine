@@ -16,7 +16,7 @@ Buffer::~Buffer() {
     vkFreeMemory(m_context->device(), m_memory, nullptr);
 }
 
-const VkBuffer& Buffer::buffer() const {
+VkBuffer Buffer::buffer() const {
     return m_buffer;
 }
 
