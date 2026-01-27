@@ -144,7 +144,9 @@ void RenderGraph::executeNode(NodeHandle nodeHandle, const VkCommandBuffer comma
     }
 
     for(auto d : node.descriptorAttachments) {
-        m_descriptorAttachmentDescriptions[d].update(commandBuffer, attachments->descriptorAttachment(d).buffer);
+        auto descriptorBuffer = attachments->descriptorAttachment(d).buffer;
+        descriptorBuffer->stagingBuffer().setData(m_descriptorAttachmentDescriptions[d].updateSource());
+        descriptorBuffer->flush(commandBuffer);
     }
 
     VkRenderPassBeginInfo renderPassInfo {

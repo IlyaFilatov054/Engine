@@ -37,7 +37,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
             .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
         },
     };
-    uint32_t ssboLayout = m_descriptorManager->createLayout(ssboBindings);
+    auto ssboLayout = m_descriptorManager->createLayout(ssboBindings);
     auto ssboDescriptors = m_descriptorManager->allocateSets(ssboLayout, m_frameManager->imageCount());
 
     std::vector<VkDescriptorSetLayoutBinding> textureBindings = {
@@ -48,7 +48,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
             .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
         },
     };
-    uint32_t texturesLayout = m_descriptorManager->createLayout(textureBindings);
+    auto texturesLayout = m_descriptorManager->createLayout(textureBindings);
     auto textureDescriptor = m_descriptorManager->allocateSet(texturesLayout);
 
     std::vector<VkDescriptorSetLayoutBinding> cameraBindings = {
@@ -59,7 +59,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
             .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
         },
     };
-    uint32_t cameraLayout = m_descriptorManager->createLayout(cameraBindings);
+    auto cameraLayout = m_descriptorManager->createLayout(cameraBindings);
     auto camera1Descriptors = m_descriptorManager->allocateSets(cameraLayout, m_frameManager->imageCount());
     auto camera2Descriptors = m_descriptorManager->allocateSets(cameraLayout, m_frameManager->imageCount());
 
@@ -71,7 +71,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
             .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
         },
     };
-    uint32_t offscreenLayout = m_descriptorManager->createLayout(offscreenBindings);
+    auto offscreenLayout = m_descriptorManager->createLayout(offscreenBindings);
     auto offscreenDescriptors = m_descriptorManager->allocateSets(offscreenLayout, m_frameManager->imageCount());
 
     std::vector<VkDescriptorSetLayout> firstPassUsedDescriptorSetLayouts = {
@@ -250,13 +250,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
         .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
         .bufferSize = camera1->dataSize(),
-        .update = [&](
-            const VkCommandBuffer commandBuffer,
-            StagedBuffer* buffer
-        ) {
-            buffer->stagingBuffer().setData(camera1->data(), camera1->dataSize(), 0);
-            buffer->flush(commandBuffer);    
-        }
+        .updateSource = [&](){ return camera1->data(); },
     };
     auto camera1Attachment = m_renderGraph->addDescriptorAttachment(camera1AttachmentDescription);
 
@@ -265,13 +259,7 @@ DescriptorAttachmentDescription camera2AttachmentDescription {
         .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
         .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
         .bufferSize = camera1->dataSize(),
-        .update = [&](
-            const VkCommandBuffer commandBuffer,
-            StagedBuffer* buffer
-        ) {
-            buffer->stagingBuffer().setData(camera2->data(), camera2->dataSize(), 0);
-            buffer->flush(commandBuffer);    
-        }
+        .updateSource = [&](){ return camera2->data(); },
     };
     auto camera2Attachment = m_renderGraph->addDescriptorAttachment(camera2AttachmentDescription);
 
@@ -280,13 +268,7 @@ DescriptorAttachmentDescription camera2AttachmentDescription {
         .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 
         .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 
         .bufferSize = 1024,
-        .update = [&](
-            const VkCommandBuffer commandBuffer,
-            StagedBuffer* buffer
-        ) {
-            buffer->stagingBuffer().setData(m_resourceManager->renderData(), m_resourceManager->renderDataSize(), 0);
-            buffer->flush(commandBuffer);
-        }
+        .updateSource = [&](){ return m_resourceManager->renderData(); },
     };
     auto ssboAttachment = m_renderGraph->addDescriptorAttachment(ssboAttachmentDescription);
     

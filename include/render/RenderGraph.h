@@ -58,17 +58,13 @@ struct ReadAttachmentDescription {
     std::vector<ImageAttachmentHandle> imageAttachments;
 };
 
-typedef std::function<void(
-    const VkCommandBuffer commandBuffer,
-    StagedBuffer* buffer
-)> DescriptorUpdate;
-
+typedef std::function<void*()> DescriptorUpdateSource;
 struct DescriptorAttachmentDescription {
     std::vector<VkDescriptorSet> perFrameDescriptors;
     VkDescriptorType type;
     VkBufferUsageFlagBits usage;
     uint32_t bufferSize;
-    DescriptorUpdate update;
+    DescriptorUpdateSource updateSource;
 };
 
 typedef uint32_t StepHandle;
