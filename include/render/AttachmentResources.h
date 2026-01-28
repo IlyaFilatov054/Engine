@@ -1,10 +1,12 @@
 #pragma once
 
+#include "render/DescriptorManager.h"
 #include "render/StagedBuffer.h"
 #include "render/VkContext.h"
 #include "render/Image.h"
 #include <cstdint>
 #include <glm/ext/scalar_uint_sized.hpp>
+#include <map>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
@@ -16,6 +18,7 @@ struct ImageAttachment {
 
 typedef uint32_t ReadAttachmentHandle;
 struct ReadAttachment {
+    DescriptorSetLayoutHandle descriptorSetLayoutHandle;
     VkDescriptorSet descriptor;
     std::vector<uint32_t> images;
 };
@@ -28,6 +31,7 @@ struct WriteAttachment {
 
 typedef uint32_t DescriptorAttachmentHandle;
 struct DescriptorAttachment {
+    DescriptorSetLayoutHandle descriptorSetLayoutHandle;
     VkDescriptorSet descriptor;
     StagedBuffer* buffer;
 };
@@ -38,8 +42,9 @@ public:
     ~AttachmentResources();
 
     ImageAttachment imageAttachment(ImageAttachmentHandle handle) const;
-    ImageAttachmentHandle addImageAttachment(Image* attachment);
-    ImageAttachmentHandle addImageAttachment(
+    void addImageAttachment(ImageAttachmentHandle handle, Image* attachment);
+    void addImageAttachment(
+        ImageAttachmentHandle handle,
         VkFormat format,
         VkImageUsageFlags usage,
         VkExtent3D extent,
@@ -47,32 +52,42 @@ public:
     );
 
     WriteAttachment writeAttachment(WriteAttachmentHandle handle) const;
-    WriteAttachmentHandle addWriteAttachment(
+    void addWriteAttachment(
+        WriteAttachmentHandle handle,
         const VkRenderPass renderPass,
         const VkExtent2D& extent,
         const std::vector<ImageAttachmentHandle>& imageAttachments
     );
 
     ReadAttachment readAttachment(ReadAttachmentHandle handle) const;
-    ReadAttachmentHandle addReadAttachment(
+    void addReadAttachment(
+        ReadAttachmentHandle handle,
+        DescriptorSetLayoutHandle descriptorSetLayoutHandle,
         VkDescriptorSet descriptor,
         const std::vector<ImageAttachmentHandle>& imageAttachments
     );
 
     DescriptorAttachment descriptorAttachment(DescriptorAttachmentHandle handle) const;
-    DescriptorAttachmentHandle addDescriptorAttachment(
+    void addDescriptorAttachment(
+        DescriptorAttachmentHandle handle,
+        DescriptorSetLayoutHandle descriptorSetLayoutHandle,
         const VkDescriptorSet descriptor,
         const VkDescriptorType type,
         const VkBufferUsageFlagBits usage,
         uint32_t bufferSize
     );
+    void addDescriptorAttachment(
+        DescriptorAttachmentHandle handle,
+        const VkDescriptorSet descriptor,
+        const VkDescriptorType type
+    );
 private:
     const VkContext* m_context;
 
-    std::vector<ImageAttachment> m_imageAttachments;
-    std::vector<WriteAttachment> m_writeAttachments;
-    std::vector<ReadAttachment> m_readAttachments;
-    std::vector<DescriptorAttachment> m_descriptorAttachments;
+    std::map<ImageAttachmentHandle, ImageAttachment> m_imageAttachments;
+    std::map<WriteAttachmentHandle, WriteAttachment> m_writeAttachments;
+    std::map<ReadAttachmentHandle, ReadAttachment> m_readAttachments;
+    std::map<DescriptorAttachmentHandle, DescriptorAttachment> m_descriptorAttachments;
 
     VkSampler m_readAttachmentSampler = VK_NULL_HANDLE;
 };

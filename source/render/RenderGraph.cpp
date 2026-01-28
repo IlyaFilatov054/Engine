@@ -1,5 +1,6 @@
 #include "render/RenderGraph.h"
 #include "render/AttachmentResources.h"
+#include "render/DescriptorManager.h"
 #include "render/RenderPass.h"
 #include <cstdint>
 #include <stdexcept>
@@ -12,33 +13,32 @@ RenderGraph::RenderGraph(const VkContext* context) : m_context(context) {
 
 RenderGraph::~RenderGraph() {
     for(const auto& p : m_renderPasses){
-        delete p;
+        delete p.second;
     }
     for(const auto& a : m_attachmentResources){
         delete a;
     }    
 }
 
-const RenderPassHandle RenderGraph::addRenderPass(
+void RenderGraph::addRenderPass(
+    RenderPassHandle handle,
     const std::vector<VkAttachmentDescription>& attachments,
     const std::vector<VkImageLayout>& attachmentLayouts,
     const VkExtent2D& extent, 
     const std::vector<ShaderDescription>& shaders,
-    const std::vector<VkDescriptorSetLayout> usedLayouts
+    const std::vector<DescriptorSetLayout> usedLayouts
 ) {
-    m_renderPasses.push_back(new RenderPass(m_context, attachments, attachmentLayouts, extent, shaders, usedLayouts));
-    return m_renderPasses.size() - 1;
+    if(m_renderPasses.contains(handle)) throw std::runtime_error("Render pass handle already present!");
+    m_renderPasses[handle] = new RenderPass(m_context, attachments, attachmentLayouts, extent, shaders, usedLayouts);
 }
 
-const NodeHandle RenderGraph::addNode(const RenderGraphNode& node, uint32_t step) {
-    m_nodes.push_back(node);
-    uint32_t id = m_nodes.size() - 1;
+void RenderGraph::addNode(NodeHandle handle, const RenderGraphNode& node, uint32_t step) {
+    if(m_nodes.contains(handle)) throw std::runtime_error("Node handle already present!");
+    m_nodes[handle] = node;
 
     auto it = m_steps.find(step);
     if(it == m_steps.end()) m_steps[step] = std::vector<uint32_t>();
-    m_steps[step].push_back(id);
-
-    return id;
+    m_steps[step].push_back(handle);
 }
 
 void RenderGraph::execute(const VkCommandBuffer commandBuffer, uint32_t image) {
@@ -56,24 +56,24 @@ void RenderGraph::addDrawCall(FrameRenderDataHandle frameRenderDataHandle, DrawC
     m_renderQueue[frameRenderDataHandle].push_back(drawCall);
 }
 
-const ImageAttachmentHandle RenderGraph::addImageAttachment(ImageAttachmentDescription& description) {
+void RenderGraph::addImageAttachment(ImageAttachmentDescription& description) {
     m_imageAttachmentDescriptions.push_back(description);
-    return m_imageAttachmentDescriptions.size() - 1;
 }
 
-const WriteAttachmentHandle RenderGraph::addWriteAttachment(WriteAttachmentDescription& description) {
+void RenderGraph::addWriteAttachment(WriteAttachmentDescription& description) {
     m_writeAttachmentDescriptions.push_back(description);
-    return m_writeAttachmentDescriptions.size() - 1;
 }
 
-const ReadAttachmentHandle RenderGraph::addReadAttachment(ReadAttachmentDescription& description) {
+void RenderGraph::addReadAttachment(ReadAttachmentDescription& description) {
     m_readAttachmentDescriptions.push_back(description);
-    return m_readAttachmentDescriptions.size() - 1;
 }
 
-const DescriptorAttachmentHandle RenderGraph::addDescriptorAttachment(DescriptorAttachmentDescription& description) {
+void RenderGraph::addDescriptorAttachment(DescriptorAttachmentDescription& description) {
     m_descriptorAttachmentDescriptions.push_back(description);
-    return m_descriptorAttachmentDescriptions.size() - 1;
+}
+
+void RenderGraph::bindDescriptorAttachmentDataSource(DescriptorAttachmentHandle handle, DescriptorUpdateSource source) {
+    m_descriptorAttachmentsUpdateSources[handle] = source;
 }
 
 void RenderGraph::createAttachmentResources(uint32_t imageCount) {
@@ -81,48 +81,50 @@ void RenderGraph::createAttachmentResources(uint32_t imageCount) {
         AttachmentResources* resources = new AttachmentResources(m_context);
         for(uint32_t j = 0; j < m_imageAttachmentDescriptions.size(); j++) {
             auto& imageDescription = m_imageAttachmentDescriptions[j];
-            ImageAttachmentHandle imageAttachmentHandle;
             if(imageDescription.externalImages.size() > 0) {
-                imageAttachmentHandle = resources->addImageAttachment(
+                resources->addImageAttachment(
+                    imageDescription.handle,
                     imageDescription.externalImages[i]
                 );
             }
             else {
-                imageAttachmentHandle = resources->addImageAttachment(
+                resources->addImageAttachment(
+                    imageDescription.handle,
                     imageDescription.format,
                     imageDescription.usage,
                     imageDescription.extent,
                     imageDescription.aspect
                 );
             }
-            if(imageAttachmentHandle != j) throw std::runtime_error("Image attachment desync!");
         }
         for(uint32_t j = 0; j < m_writeAttachmentDescriptions.size(); j++) {
             auto& writeDescription = m_writeAttachmentDescriptions[j];
-            auto handle = resources->addWriteAttachment(
+            resources->addWriteAttachment(
+                writeDescription.handle,
                 m_renderPasses[writeDescription.renderPass]->renderPass(),
                 writeDescription.extent,
                 writeDescription.imageAttachments
             );
-            if(handle != j) throw std::runtime_error("Write attachment desync!");
         }
         for(uint32_t j = 0; j < m_readAttachmentDescriptions.size(); j++) {
             auto& readDescription = m_readAttachmentDescriptions[j];
-            auto handle = resources->addReadAttachment(
+            resources->addReadAttachment(
+                readDescription.handle,
+                readDescription.descriptorSetLayoutHandle,
                 readDescription.perFrameDescriptors[i],
                 readDescription.imageAttachments
             );
-            if(handle != j) throw std::runtime_error("Read attachment desync!");
         }
         for(uint32_t j = 0; j < m_descriptorAttachmentDescriptions.size(); j++) {
             auto& descriptorDescription = m_descriptorAttachmentDescriptions[j];
-            auto handle = resources->addDescriptorAttachment(
+            resources->addDescriptorAttachment(
+                descriptorDescription.handle,
+                descriptorDescription.descriptorSetLayoutHandle,
                 descriptorDescription.perFrameDescriptors[i],
                 descriptorDescription.type,
                 descriptorDescription.usage,
                 descriptorDescription.bufferSize
             );
-            if(handle != j) throw std::runtime_error("Descriptor attachment desync!");
         }
         m_attachmentResources.push_back(resources);
     }
@@ -145,7 +147,7 @@ void RenderGraph::executeNode(NodeHandle nodeHandle, const VkCommandBuffer comma
 
     for(auto d : node.descriptorAttachments) {
         auto descriptorBuffer = attachments->descriptorAttachment(d).buffer;
-        descriptorBuffer->stagingBuffer().setData(m_descriptorAttachmentDescriptions[d].updateSource());
+        descriptorBuffer->stagingBuffer().setData(m_descriptorAttachmentsUpdateSources[d]());
         descriptorBuffer->flush(commandBuffer);
     }
 
@@ -160,26 +162,19 @@ void RenderGraph::executeNode(NodeHandle nodeHandle, const VkCommandBuffer comma
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderPass->pipeline().pipeline());
 
+    std::map<DescriptorSetLayoutHandle, VkDescriptorSet> unorderedDescriptors;
+    for(auto d : node.externalDescriptors) {
+        unorderedDescriptors[d.layout] = d.descriptor;
+    }
+    for(auto d : node.descriptorAttachments) {
+        unorderedDescriptors[attachments->descriptorAttachment(d).descriptorSetLayoutHandle] = attachments->descriptorAttachment(d).descriptor;
+    }
+    for(auto d : node.inputAttachments) {
+        unorderedDescriptors[attachments->readAttachment(d).descriptorSetLayoutHandle] = attachments->readAttachment(d).descriptor;
+    }
     std::vector<VkDescriptorSet> descriptors;
-    for(auto o : node.descriptorOrder) {
-        switch (o) {
-            case DescriptorStage::Const: {
-                descriptors.insert(descriptors.end(), node.constDescriptors.begin(), node.constDescriptors.end());
-                break;
-            }
-            case DescriptorStage::Frame: {
-                for(uint32_t i = 0; i < node.descriptorAttachments.size(); i++) {
-                    descriptors.push_back(attachments->descriptorAttachment(node.descriptorAttachments[i]).descriptor);
-                }
-                break;
-            }
-            case DescriptorStage::Input: {
-                for(auto inputAttachmentHandle : node.inputAttachments) {
-                    descriptors.push_back(attachments->readAttachment(inputAttachmentHandle).descriptor);
-                }
-                break;
-            }
-        }
+    for(auto d : renderPass->descriptorOrder()) {
+        descriptors.push_back(unorderedDescriptors[d]);
     }
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderPass->pipeline().layout(), 0, descriptors.size(), descriptors.data(), 0, nullptr);
 

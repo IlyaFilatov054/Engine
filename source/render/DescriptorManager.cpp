@@ -1,5 +1,6 @@
 #include "render/DescriptorManager.h"
 #include <cstdint>
+#include <stdexcept>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
@@ -29,12 +30,12 @@ DescriptorManager::DescriptorManager(const VkContext* context) : m_context(conte
 
 DescriptorManager::~DescriptorManager() {
     for(auto& l : m_layouts) {
-        vkDestroyDescriptorSetLayout(m_context->device(), l, nullptr);
+        vkDestroyDescriptorSetLayout(m_context->device(), l.second, nullptr);
     }
     vkDestroyDescriptorPool(m_context->device(), m_pool, nullptr);
 }
 
-DescriptorSetLayoutHandle DescriptorManager::createLayout(const std::vector<VkDescriptorSetLayoutBinding>& bindings) {
+void DescriptorManager::createLayout(DescriptorSetLayoutHandle handle, const std::vector<VkDescriptorSetLayoutBinding>& bindings) {
     VkDescriptorSetLayout layout = VK_NULL_HANDLE;
     VkDescriptorSetLayoutCreateInfo cameraLayoutInfo {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -42,19 +43,20 @@ DescriptorSetLayoutHandle DescriptorManager::createLayout(const std::vector<VkDe
         .pBindings = bindings.data(),
     };
     vkCreateDescriptorSetLayout(m_context->device(), &cameraLayoutInfo, nullptr, &layout);
-    m_layouts.push_back(layout);
-    return m_layouts.size() - 1;
+    if(m_layouts.contains(handle)) throw std::runtime_error("Current descriptor set layout handle already present!");
+    m_layouts[handle] = layout;
 }
 
-VkDescriptorSetLayout DescriptorManager::layout(uint32_t id) const {
-    return m_layouts[id];
+VkDescriptorSetLayout DescriptorManager::layout(DescriptorSetLayoutHandle handle) const {
+    if(!m_layouts.contains(handle)) throw std::runtime_error("Descriptor set layout not found!");
+    return m_layouts.at(handle);
 }
 
-std::vector<VkDescriptorSet> DescriptorManager::allocateSets(DescriptorSetLayoutHandle layoutHandle, uint32_t count) const {
+void DescriptorManager::allocateSets(DescriptorSetHandle descriptorHandle, DescriptorSetLayoutHandle layoutHandle, uint32_t count) {
     std::vector<VkDescriptorSet> sets;
     sets.resize(count);
     std::vector<VkDescriptorSetLayout> layouts;
-    for(uint32_t i = 0; i < count; i++) layouts.push_back(m_layouts[layoutHandle]);
+    for(uint32_t i = 0; i < count; i++) layouts.push_back(m_layouts.at(layoutHandle));
     VkDescriptorSetAllocateInfo ssboSetAllocInfo {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
         .descriptorPool = m_pool,
@@ -62,9 +64,11 @@ std::vector<VkDescriptorSet> DescriptorManager::allocateSets(DescriptorSetLayout
         .pSetLayouts = layouts.data(),
     };
     vkAllocateDescriptorSets(m_context->device(), &ssboSetAllocInfo, sets.data());
-    return sets;
+    if(m_sets.contains(descriptorHandle)) throw std::runtime_error("Current descriptor set handle already present!");
+    m_sets[descriptorHandle] = sets;
 }
 
-VkDescriptorSet DescriptorManager::allocateSet(DescriptorSetLayoutHandle layoutHandle) const {
-    return allocateSets(layoutHandle, 1)[0];
+const std::vector<VkDescriptorSet>& DescriptorManager::sets(DescriptorSetHandle descriptorHandle) const {
+    if(!m_sets.contains(descriptorHandle)) throw std::runtime_error("Descriptor set not found!");
+    return m_sets.at(descriptorHandle);
 }

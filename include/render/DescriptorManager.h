@@ -5,22 +5,26 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
+#include <map>
 
 typedef uint32_t DescriptorSetLayoutHandle;
+typedef uint32_t DescriptorSetHandle;
 
 class DescriptorManager {
 public:
     DescriptorManager(const VkContext* context);
     ~DescriptorManager();
 
-    DescriptorSetLayoutHandle createLayout(const std::vector<VkDescriptorSetLayoutBinding>& bindings);
+    void createLayout(DescriptorSetLayoutHandle handle, const std::vector<VkDescriptorSetLayoutBinding>& bindings);
     VkDescriptorSetLayout layout(DescriptorSetLayoutHandle handle) const;
     
-    std::vector<VkDescriptorSet> allocateSets(DescriptorSetLayoutHandle layoutHandle, uint32_t count) const;
-    VkDescriptorSet allocateSet(DescriptorSetLayoutHandle layoutHandle) const;
+    void allocateSets(DescriptorSetHandle descriptorHandle, DescriptorSetLayoutHandle layoutHandle, uint32_t count);
+    const std::vector<VkDescriptorSet>& sets(DescriptorSetHandle descriptorHandle) const;
+
 private:
     const VkContext* m_context = nullptr;
 
     VkDescriptorPool m_pool = VK_NULL_HANDLE;
-    std::vector<VkDescriptorSetLayout> m_layouts;
+    std::map<DescriptorSetLayoutHandle, VkDescriptorSetLayout> m_layouts;
+    std::map<DescriptorSetHandle, std::vector<VkDescriptorSet>> m_sets;
 };

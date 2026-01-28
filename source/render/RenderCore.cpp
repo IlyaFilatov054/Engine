@@ -13,6 +13,7 @@
 #include "render/Pipeline.h"
 #include "render/RenderGraph.h"
 #include "render/RenderPass.h"
+#include "render/RenderSetup.h"
 #include "render/ResourceManager.h"
 #include "render/ShaderManager.h"
 #include "core/Utils.h"
@@ -29,64 +30,401 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_frameManager->createFrameResources();
     m_frameManager->createImageResources();
 
-    std::vector<VkDescriptorSetLayoutBinding> ssboBindings = {
-    VkDescriptorSetLayoutBinding {
-            .binding = 0,
-            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-            .descriptorCount = 1,
-            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
+    m_shaderManager = new ShaderManager(m_context);
+    m_shaderManager->createShaderModule(readFile("shaders/main.vert.spv"), "vert");
+    m_shaderManager->createShaderModule(readFile("shaders/main.frag.spv"), "frag");
+    m_shaderManager->createShaderModule(readFile("shaders/test.vert.spv"), "testvert");
+    m_shaderManager->createShaderModule(readFile("shaders/test.frag.spv"), "testfrag");
+
+    m_renderGraph = new RenderGraph(m_context);
+
+    RenderSetup renderSetup {
+        .descriptorSetLayouts {
+            DescriptorSetLayoutSetup {
+                .handle = 0,
+                .bindings = {
+                    VkDescriptorSetLayoutBinding {
+                        .binding = 0,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                        .descriptorCount = 1,
+                        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
+                    },            
+                }
+            },
+            DescriptorSetLayoutSetup {
+                .handle = 1,
+                .bindings = {
+                    VkDescriptorSetLayoutBinding {
+                        .binding = 0,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .descriptorCount = 16,
+                        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
+                    },            
+                }
+            },
+            DescriptorSetLayoutSetup {
+                .handle = 2,
+                .bindings = {
+                    VkDescriptorSetLayoutBinding {
+                        .binding = 0,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                        .descriptorCount = 1,
+                        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
+                    },            
+                }
+            },
+            DescriptorSetLayoutSetup {
+                .handle = 3,
+                .bindings = {
+                    VkDescriptorSetLayoutBinding {
+                        .binding = 0,
+                        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .descriptorCount = 1,
+                        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
+                    },            
+                }
+            },
         },
-    };
-    auto ssboLayout = m_descriptorManager->createLayout(ssboBindings);
-    auto ssboDescriptors = m_descriptorManager->allocateSets(ssboLayout, m_frameManager->imageCount());
-
-    std::vector<VkDescriptorSetLayoutBinding> textureBindings = {
-        VkDescriptorSetLayoutBinding {
-            .binding = 0,
-            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .descriptorCount = 16,
-            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
+        .descriptorSets = {
+            DescriptorSetSetup {
+                .handle = 0,
+                .layout = 0,
+                .perFrame = true
+            },
+            DescriptorSetSetup {
+                .handle = 1,
+                .layout = 1,
+                .perFrame = false
+            },
+            DescriptorSetSetup {
+                .handle = 2,
+                .layout = 2,
+                .perFrame = true
+            },
+            DescriptorSetSetup {
+                .handle = 3,
+                .layout = 2,
+                .perFrame = true
+            },
+            DescriptorSetSetup {
+                .handle = 4,
+                .layout = 3,
+                .perFrame = true
+            },
         },
-    };
-    auto texturesLayout = m_descriptorManager->createLayout(textureBindings);
-    auto textureDescriptor = m_descriptorManager->allocateSet(texturesLayout);
-
-    std::vector<VkDescriptorSetLayoutBinding> cameraBindings = {
-        VkDescriptorSetLayoutBinding {
-            .binding = 0,
-            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .descriptorCount = 1,
-            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
+        .renderPasses {
+            RenderPassSetup {
+                .hadle = 0,
+                .descriptorSetLayouts = {1, 0, 2},
+                .shaders = {
+                    ShaderDescriptionSetup {
+                        .shaderName = "vert",
+                        .stage = VK_SHADER_STAGE_VERTEX_BIT
+                    },
+                    ShaderDescriptionSetup {
+                        .shaderName = "frag",
+                        .stage = VK_SHADER_STAGE_FRAGMENT_BIT
+                    },
+                },
+                .attachments {
+                    RenderPassAttachmentSetup {
+                        .description = {
+                            .samples = VK_SAMPLE_COUNT_1_BIT,
+                            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                            .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL                
+                        },
+                        .swapchainFormat = true,
+                        .referenceLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+                    },
+                    RenderPassAttachmentSetup {
+                        .description = {
+                            .format = VK_FORMAT_D32_SFLOAT,
+                            .samples = VK_SAMPLE_COUNT_1_BIT,
+                            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                            .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                            .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL                
+                        },
+                        .swapchainFormat = false,
+                        .referenceLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                    },
+                },
+                .swapchainExtent = true
+            },
+            RenderPassSetup {
+                .hadle = 1,
+                .descriptorSetLayouts = {3, 0, 2},
+                .shaders = {
+                    ShaderDescriptionSetup {
+                        .shaderName = "vert",
+                        .stage = VK_SHADER_STAGE_VERTEX_BIT
+                    },
+                    ShaderDescriptionSetup {
+                        .shaderName = "testfrag",
+                        .stage = VK_SHADER_STAGE_FRAGMENT_BIT
+                    },
+                },
+                .attachments {
+                    RenderPassAttachmentSetup {
+                        .description = {
+                            .samples = VK_SAMPLE_COUNT_1_BIT,
+                            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR                
+                        },
+                        .swapchainFormat = true,
+                        .referenceLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+                    },
+                    RenderPassAttachmentSetup {
+                        .description = {
+                            .format = VK_FORMAT_D32_SFLOAT,
+                            .samples = VK_SAMPLE_COUNT_1_BIT,
+                            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                            .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                            .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL                
+                        },
+                        .swapchainFormat = false,
+                        .referenceLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                    },
+                },
+                .swapchainExtent = true
+            },
         },
-    };
-    auto cameraLayout = m_descriptorManager->createLayout(cameraBindings);
-    auto camera1Descriptors = m_descriptorManager->allocateSets(cameraLayout, m_frameManager->imageCount());
-    auto camera2Descriptors = m_descriptorManager->allocateSets(cameraLayout, m_frameManager->imageCount());
-
-    std::vector<VkDescriptorSetLayoutBinding> offscreenBindings = {
-        VkDescriptorSetLayoutBinding {
-            .binding = 0,
-            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .descriptorCount = 1,
-            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
+        .imageAttachments {
+            ImageAttachmentSetup {
+                .handle = 0,
+                .swapchainImage = true,
+            },
+            ImageAttachmentSetup {
+                .handle = 1,
+                .format = VK_FORMAT_D32_SFLOAT,
+                .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                .swapchainExtent = true,
+                .aspect = VK_IMAGE_ASPECT_DEPTH_BIT 
+            },
+            ImageAttachmentSetup {
+                .handle = 2,
+                .format = VK_FORMAT_D32_SFLOAT,
+                .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                .swapchainExtent = true,
+                .aspect = VK_IMAGE_ASPECT_DEPTH_BIT 
+            },
+            ImageAttachmentSetup {
+                .handle = 3,
+                .swapchainFormat = true,
+                .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                .swapchainExtent = true,
+                .aspect = VK_IMAGE_ASPECT_COLOR_BIT 
+            },
         },
+        .writeAttachments {
+            WriteAttachmentSetup {
+                .handle = 0,
+                .renderPass = 1,
+                .swapchainExtent = true,
+                .imageAttachments = {0, 1}
+            },
+            WriteAttachmentSetup {
+                .handle = 1,
+                .renderPass = 0,
+                .swapchainExtent = true,
+                .imageAttachments = {3, 2}
+            },
+        },
+        .readAttachments {
+            ReadAttachmentSetup {
+                .handle = 0,
+                .descriptorSetLayout = 3,
+                .descriptors = 4,
+                .imageAttachments = {3}
+            },
+        },
+        .descriptorAttachments {
+            DescriptorAttachmentSetup {
+                .handle = 0,
+                .descriptorSetLayout = 2,
+                .descriptors = 2,
+                .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                .bufferSize = sizeof(glm::mat4) * 2
+            },
+            DescriptorAttachmentSetup {
+                .handle = 1,
+                .descriptorSetLayout = 2,
+                .descriptors = 3,
+                .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                .bufferSize = sizeof(glm::mat4) * 2
+            },
+            DescriptorAttachmentSetup {
+                .handle = 2,
+                .descriptorSetLayout = 0,
+                .descriptors = 0,
+                .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                .bufferSize = 1024
+            }
+        },
+        .renderGraphNodes {
+            RenderGraphNodeSetup {
+                .handle = 0,
+                .renderPass = 0,
+                .outputAttachment = 1,
+                .externalDescriptors {
+                    ExternalDescriptorSetup {
+                        .descriptor = 1,
+                        .layout = 1
+                    }
+                },
+                .descriptorAttachments = {2, 0},
+                .clearValues = {
+                    {.color = {1.0f, 0.0f, 0.0f, 1.0f}},
+                    {.depthStencil = {1.0f, 0}},
+                },
+                .frameRenderData = 0,
+                .step = 0
+            },
+            RenderGraphNodeSetup {
+                .handle = 1,
+                .renderPass = 1,
+                .inputAttachments = {0},
+                .outputAttachment = 0,
+                .descriptorAttachments = {2, 1},
+                .clearValues = {
+                    {.color = {0.0f, 0.0f, 0.0f, 1.0f}},
+                    {.depthStencil = {1.0f, 0}},
+                },
+                .frameRenderData = 1,
+                .step = 1
+            },
+        }
     };
-    auto offscreenLayout = m_descriptorManager->createLayout(offscreenBindings);
-    auto offscreenDescriptors = m_descriptorManager->allocateSets(offscreenLayout, m_frameManager->imageCount());
 
-    std::vector<VkDescriptorSetLayout> firstPassUsedDescriptorSetLayouts = {
-        m_descriptorManager->layout(texturesLayout),
-        m_descriptorManager->layout(ssboLayout),
-        m_descriptorManager->layout(cameraLayout),
-    };
+    for(auto descriptorSetLayout : renderSetup.descriptorSetLayouts) {
+        m_descriptorManager->createLayout(
+            descriptorSetLayout.handle,
+            descriptorSetLayout.bindings
+        );
+    }
+    for(auto descriptorSet : renderSetup.descriptorSets) {
+        m_descriptorManager->allocateSets(
+            descriptorSet.handle,
+            descriptorSet.layout,
+            descriptorSet.perFrame ? m_frameManager->imageCount() : 1
+        );
+    }
+    for(auto renderPass : renderSetup.renderPasses) {
+        std::vector<DescriptorSetLayout> descriptorSetLayouts;
+        for(auto layout : renderPass.descriptorSetLayouts) {
+            DescriptorSetLayout descriptorSetLayout {
+                .handle = layout,
+                .layout = m_descriptorManager->layout(layout)
+            };
+            descriptorSetLayouts.push_back(descriptorSetLayout);
+        }
+        
+        std::vector<ShaderDescription> shaderDescriptions;
+        for(auto shader : renderPass.shaders) {
+            ShaderDescription shaderDescription {
+                .module = m_shaderManager->getShaderModule(shader.shaderName),
+                .stage = shader.stage
+            };
+            shaderDescriptions.push_back(shaderDescription);
+        }
 
-    std::vector<VkDescriptorSetLayout> secondPassUsedDescriptorSetLayouts = {
-        m_descriptorManager->layout(offscreenLayout),
-        m_descriptorManager->layout(ssboLayout),
-        m_descriptorManager->layout(cameraLayout)
-    };
+        std::vector<VkAttachmentDescription> attachmentDescriptions;
+        std::vector<VkImageLayout> attachmentReferenceLayouts;
+        for(auto attachment : renderPass.attachments) {
+            VkAttachmentDescription attachmentDescription = attachment.description;
+            if(attachment.swapchainFormat) attachmentDescription.format = m_swapchain->format().format;
+            attachmentDescriptions.push_back(attachmentDescription);
+            attachmentReferenceLayouts.push_back(attachment.referenceLayout);
+        }
 
-    m_resourceManager = new ResourceManager(m_context, textureDescriptor);
+        m_renderGraph->addRenderPass(
+            renderPass.hadle,
+            attachmentDescriptions,
+            attachmentReferenceLayouts,
+            renderPass.swapchainExtent ? m_swapchain->extent() : renderPass.extent,
+            shaderDescriptions,
+            descriptorSetLayouts
+        );
+    }
+    for(auto imageAttachment : renderSetup.imageAttachments) {
+        ImageAttachmentDescription imageAttachmentDescription {
+            .handle = imageAttachment.handle,
+            .format = imageAttachment.swapchainFormat ? m_swapchain->format().format : imageAttachment.format,
+            .usage = imageAttachment.usage,
+            .extent = imageAttachment.swapchainExtent ? VkExtent3D{m_swapchain->extent().width, m_swapchain->extent().height, 1} : imageAttachment.extent,
+            .aspect = imageAttachment.aspect,
+        };
+        if(imageAttachment.swapchainImage) imageAttachmentDescription.externalImages = m_swapchain->images();
+        m_renderGraph->addImageAttachment(imageAttachmentDescription);
+    }
+    for(auto writeAttachment : renderSetup.writeAttachments) {
+        WriteAttachmentDescription writeAttachmentDescription {
+            .handle = writeAttachment.handle,
+            .renderPass = writeAttachment.renderPass,
+            .extent = writeAttachment.swapchainExtent ? m_swapchain->extent() : writeAttachment.extent,
+            .imageAttachments = writeAttachment.imageAttachments
+        };
+        m_renderGraph->addWriteAttachment(writeAttachmentDescription);
+    }
+    for(auto readAttachment : renderSetup.readAttachments) {
+        ReadAttachmentDescription readAttachmentDescription {
+            .handle = readAttachment.handle,
+            .descriptorSetLayoutHandle = readAttachment.descriptorSetLayout,
+            .perFrameDescriptors = m_descriptorManager->sets(readAttachment.descriptors),
+            .imageAttachments = readAttachment.imageAttachments
+        };
+        m_renderGraph->addReadAttachment(readAttachmentDescription);
+    }
+    for(auto descriptorAttachment : renderSetup.descriptorAttachments) {
+        DescriptorAttachmentDescription descriptorAttachmentDescription {
+            .handle = descriptorAttachment.handle,
+            .descriptorSetLayoutHandle = descriptorAttachment.descriptorSetLayout,
+            .perFrameDescriptors = m_descriptorManager->sets(descriptorAttachment.descriptors),
+            .type = descriptorAttachment.type,
+            .usage = descriptorAttachment.usage,
+            .bufferSize = descriptorAttachment.bufferSize
+        };
+        m_renderGraph->addDescriptorAttachment(descriptorAttachmentDescription);
+    }
+    m_renderGraph->createAttachmentResources(m_frameManager->imageCount());
+    for(auto nodeSetup : renderSetup.renderGraphNodes) {
+        std::vector<ExternalDescriptor> externalDescriptors;
+        for(auto d : nodeSetup.externalDescriptors){
+            ExternalDescriptor externalDescriptor {
+                .descriptor = m_descriptorManager->sets(d.descriptor)[0],
+                .layout = d.layout
+            };
+            externalDescriptors.push_back(externalDescriptor);
+        }
+        RenderGraphNode node {
+            .renderPass = nodeSetup.renderPass,
+            .inputAttachments = nodeSetup.inputAttachments,
+            .outputAttachment = nodeSetup.outputAttachment,
+            .externalDescriptors = externalDescriptors,
+            .descriptorAttachments = nodeSetup.descriptorAttachments,
+            .clearValues = nodeSetup.clearValues,
+            .frameRenderData = nodeSetup.frameRenderData
+        };
+        m_renderGraph->addNode(nodeSetup.handle, node, nodeSetup.step);
+    }
+    
+    m_resourceManager = new ResourceManager(m_context, m_descriptorManager->sets(1).front());
     m_resourceManager->addMesh(m_vertices, m_indices);
     m_resourceManager->addTexture("/home/ilya/Pictures/Wallpapers/landscapes/Rainnight.jpg");
     
@@ -112,213 +450,27 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
 
     camera1 = new Camera(m_context);
     camera1->aspect = (float)m_swapchain->extent().width / (float)m_swapchain->extent().height;
+    m_renderGraph->bindDescriptorAttachmentDataSource(0, [&](){return camera1->data();});
+
 
     camera2 = new Camera(m_context);
     camera2->aspect = (float)m_swapchain->extent().width / (float)m_swapchain->extent().height;
+    m_renderGraph->bindDescriptorAttachmentDataSource(1, [&](){return camera2->data();});
 
-    m_shaderManager = new ShaderManager(m_context);
-    m_shaderManager->createShaderModule(readFile("shaders/main.vert.spv"), "vert");
-    m_shaderManager->createShaderModule(readFile("shaders/main.frag.spv"), "frag");
-    m_shaderManager->createShaderModule(readFile("shaders/test.vert.spv"), "testvert");
-    m_shaderManager->createShaderModule(readFile("shaders/test.frag.spv"), "testfrag");
-    auto vertexShader = m_shaderManager->getShaderModule("vert");
-    auto fragmentShader = m_shaderManager->getShaderModule("frag");
-    auto testVertexShader = m_shaderManager->getShaderModule("testvert");
-    auto testFragmentShader = m_shaderManager->getShaderModule("testfrag");
-    std::vector<ShaderDescription> shaderDescriptions = {
-        {
-            .module = vertexShader,
-            .stage = VK_SHADER_STAGE_VERTEX_BIT,
-        },
-        {
-            .module = fragmentShader,
-            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-        }
-    };
-    std::vector<ShaderDescription> shaderDescriptions2 = {
-        {
-            .module = vertexShader,
-            .stage = VK_SHADER_STAGE_VERTEX_BIT,
-        },
-        {
-            .module = testFragmentShader,
-            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-        }
-    };
-
-    m_renderGraph = new RenderGraph(m_context);
-
-    std::vector<VkAttachmentDescription> renderPassAttachments {
-        {
-            .format = m_swapchain->format().format,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        },
-        {
-            .format = VK_FORMAT_D32_SFLOAT,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-        }
-    };
-    std::vector<VkImageLayout> renderPassAttachmentLayouts {
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-    };
-    std::vector<VkAttachmentDescription> renderPass2Attachments {
-        {
-            .format = m_swapchain->format().format,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-        },
-        {
-            .format = VK_FORMAT_D32_SFLOAT,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-        }
-    };
-    std::vector<VkImageLayout> renderPass2AttachmentLayouts {
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-    };
-    RenderPassHandle renderPass = m_renderGraph->addRenderPass(renderPassAttachments, renderPassAttachmentLayouts, m_swapchain->extent(), shaderDescriptions, firstPassUsedDescriptorSetLayouts);
-    RenderPassHandle secondRenderPass = m_renderGraph->addRenderPass(renderPass2Attachments, renderPass2AttachmentLayouts, m_swapchain->extent(), shaderDescriptions2, secondPassUsedDescriptorSetLayouts);
-
-    ImageAttachmentDescription swapchainImageDescription {
-        .externalImages = m_swapchain->images()
-    };
-    auto swapchainImageHandle = m_renderGraph->addImageAttachment(swapchainImageDescription);
-    
-    ImageAttachmentDescription depthImageDescription {
-        .format = VK_FORMAT_D32_SFLOAT,
-        .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-        .extent = {m_swapchain->extent().width, m_swapchain->extent().height, 1},
-        .aspect = VK_IMAGE_ASPECT_DEPTH_BIT
-    };
-    auto offscreenDepthImageHandle = m_renderGraph->addImageAttachment(depthImageDescription);
-    auto presentDepthImageHandle = m_renderGraph->addImageAttachment(depthImageDescription);
-
-    ImageAttachmentDescription offscreenColorImageDescription {
-        .format = m_swapchain->format().format,
-        .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        .extent = {m_swapchain->extent().width, m_swapchain->extent().height, 1},
-        .aspect = VK_IMAGE_ASPECT_COLOR_BIT
-    };
-    auto offscreenColorHandle = m_renderGraph->addImageAttachment(offscreenColorImageDescription);
-
-    WriteAttachmentDescription presentAttachmentDescription {
-        .renderPass = secondRenderPass,
-        .extent = m_swapchain->extent(),
-        .imageAttachments = {swapchainImageHandle, presentDepthImageHandle}
-    };
-    auto presentAttachment = m_renderGraph->addWriteAttachment(presentAttachmentDescription);
-
-    WriteAttachmentDescription offscreenWriteAttachmentDescription {
-        .renderPass = renderPass,
-        .extent = m_swapchain->extent(),
-        .imageAttachments = {offscreenColorHandle, offscreenDepthImageHandle}
-    };
-    auto offscreenWriteAttachment = m_renderGraph->addWriteAttachment(offscreenWriteAttachmentDescription);
-
-    ReadAttachmentDescription offscreenReadAttachmentDescription {
-        .perFrameDescriptors = offscreenDescriptors,
-        .imageAttachments = {offscreenColorHandle},
-    };
-    auto offscreenReadAttachment = m_renderGraph->addReadAttachment(offscreenReadAttachmentDescription);
-
-    DescriptorAttachmentDescription camera1AttachmentDescription {
-        .perFrameDescriptors = camera1Descriptors,
-        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
-        .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-        .bufferSize = camera1->dataSize(),
-        .updateSource = [&](){ return camera1->data(); },
-    };
-    auto camera1Attachment = m_renderGraph->addDescriptorAttachment(camera1AttachmentDescription);
-
-DescriptorAttachmentDescription camera2AttachmentDescription {
-        .perFrameDescriptors = camera2Descriptors,
-        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
-        .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-        .bufferSize = camera1->dataSize(),
-        .updateSource = [&](){ return camera2->data(); },
-    };
-    auto camera2Attachment = m_renderGraph->addDescriptorAttachment(camera2AttachmentDescription);
-
-    DescriptorAttachmentDescription ssboAttachmentDescription {
-        .perFrameDescriptors = ssboDescriptors,
-        .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 
-        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 
-        .bufferSize = 1024,
-        .updateSource = [&](){ return m_resourceManager->renderData(); },
-    };
-    auto ssboAttachment = m_renderGraph->addDescriptorAttachment(ssboAttachmentDescription);
-    
-    m_renderGraph->createAttachmentResources(m_frameManager->imageCount());
-
-    m_renderGraph->addNode(
-        {
-            .renderPass = renderPass,
-            .outputAttachment = offscreenWriteAttachment,
-            .constDescriptors = {
-                m_resourceManager->texturesDescriptor()
-            },
-            .descriptorAttachments = {ssboAttachment, camera1Attachment},
-            .clearValues = {
-                {
-                    {.color = {1.0f, 0.0f, 0.0f, 1.0f}},
-                    {.depthStencil = {1.0f, 0}},
-                }
-            },
-            .frameRenderData = 0
-        }, 0
-    );
-    m_renderGraph->addNode(
-        {
-            .renderPass = secondRenderPass,
-            .inputAttachments = {offscreenReadAttachment},
-            .outputAttachment = presentAttachment,
-            .descriptorAttachments = {ssboAttachment, camera2Attachment},
-            .descriptorOrder = {DescriptorStage::Input, DescriptorStage::Frame, DescriptorStage::Const},
-            .clearValues = {
-                {
-                    {.color = {0.0f, 1.0f, 0.0f, 1.0f}},
-                    {.depthStencil = {1.0f, 0}},
-                }
-            },
-            .frameRenderData = 1
-        }, 1
-    );
+    m_renderGraph->bindDescriptorAttachmentDataSource(2, [&](){return m_resourceManager->renderData();});
 }
 
 RenderCore::~RenderCore(){
     vkQueueWaitIdle(m_context->graphicsQueue());
     
+    delete m_renderGraph;
+    delete m_resourceManager;
+    delete m_frameManager;
+    delete m_descriptorManager;
+    delete m_shaderManager;
+    
     delete camera1;
     delete camera2;
-    delete m_resourceManager;
-    delete m_shaderManager;
-    delete m_frameManager;
-    delete m_renderGraph;
-    delete m_descriptorManager;
 }
 
 float c = 0;

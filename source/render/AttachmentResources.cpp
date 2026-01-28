@@ -1,6 +1,7 @@
 #include "render/AttachmentResources.h"
 #include "render/StagedBuffer.h"
 #include <cstdint>
+#include <stdexcept>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
@@ -23,40 +24,41 @@ AttachmentResources::AttachmentResources(const VkContext* context) : m_context(c
 
 AttachmentResources::~AttachmentResources() {
     for(auto& a : m_writeAttachments) {
-        vkDestroyFramebuffer(m_context->device(), a.framebuffer, nullptr);
+        vkDestroyFramebuffer(m_context->device(), a.second.framebuffer, nullptr);
     }
     for(auto& a : m_imageAttachments) {
-        if(a.external) continue;
-        delete a.image;
+        if(a.second.external) continue;
+        delete a.second.image;
     }
     for(auto& a : m_descriptorAttachments) {
-        delete a.buffer;
+        delete a.second.buffer;
     }
     vkDestroySampler(m_context->device(), m_readAttachmentSampler, nullptr);
 }
 
 ImageAttachment AttachmentResources::imageAttachment(ImageAttachmentHandle handle) const {
-    return m_imageAttachments[handle];
+    return m_imageAttachments.at(handle);
 }
 
-ImageAttachmentHandle AttachmentResources::addImageAttachment(Image* attachment) {
-    m_imageAttachments.emplace_back(attachment, true);
-    return m_imageAttachments.size() - 1;
+void AttachmentResources::addImageAttachment(ImageAttachmentHandle handle, Image* attachment) {
+    if(m_imageAttachments.contains(handle)) throw std::runtime_error("Image attachment handle already present!");
+    m_imageAttachments[handle] = {.image = attachment, .external = true};
 }
 
-ImageAttachmentHandle AttachmentResources::addImageAttachment(VkFormat format, VkImageUsageFlags usage, VkExtent3D extent, VkImageAspectFlags aspect) {
+void AttachmentResources::addImageAttachment(ImageAttachmentHandle handle, VkFormat format, VkImageUsageFlags usage, VkExtent3D extent, VkImageAspectFlags aspect) {
     Image* attachment = new Image(m_context, format);
     attachment->createImage(usage, extent);
     attachment->createView(aspect);
-    m_imageAttachments.emplace_back(attachment, false);
-    return m_imageAttachments.size() - 1;
+    if(m_imageAttachments.contains(handle)) throw std::runtime_error("Image attachment handle already present!");
+    m_imageAttachments[handle] = {.image = attachment, .external = false};
 }
 
 WriteAttachment AttachmentResources::writeAttachment(WriteAttachmentHandle handle) const{
-    return m_writeAttachments[handle];
+    return m_writeAttachments.at(handle);
 }
 
-WriteAttachmentHandle AttachmentResources::addWriteAttachment(
+void AttachmentResources::addWriteAttachment(
+    WriteAttachmentHandle handle,
     const VkRenderPass renderPass,
     const VkExtent2D& extent,
     const std::vector<ImageAttachmentHandle>& imageAttachments
@@ -82,15 +84,17 @@ WriteAttachmentHandle AttachmentResources::addWriteAttachment(
     };
     vkCreateFramebuffer(m_context->device(), &framebufferInfo, nullptr, &attachment.framebuffer);
     
-    m_writeAttachments.push_back(attachment);
-    return m_writeAttachments.size() - 1;
+    if(m_writeAttachments.contains(handle)) throw std::runtime_error("Write attachment handle already present!");
+    m_writeAttachments[handle] = attachment;
 }
 
 ReadAttachment AttachmentResources::readAttachment(ReadAttachmentHandle handle) const {
-    return m_readAttachments[handle];
+    return m_readAttachments.at(handle);
 }
 
-ReadAttachmentHandle AttachmentResources::addReadAttachment(
+void AttachmentResources::addReadAttachment(
+    ReadAttachmentHandle handle,
+    DescriptorSetLayoutHandle descriptorSetLayoutHandle,
     VkDescriptorSet descriptor,
     const std::vector<uint32_t>& attachments
 ) {
@@ -113,24 +117,29 @@ ReadAttachmentHandle AttachmentResources::addReadAttachment(
         vkUpdateDescriptorSets(m_context->device(), 1, &write, 0, nullptr);
     }
     ReadAttachment attachment {
+        .descriptorSetLayoutHandle = descriptorSetLayoutHandle,
         .descriptor = descriptor,
         .images = attachments
     };
-    m_readAttachments.push_back(attachment);
-    return m_readAttachments.size() - 1;
+
+    if(m_readAttachments.contains(handle)) throw std::runtime_error("Read attachment handle already present!");
+    m_readAttachments[handle] = attachment;
 }
 
 DescriptorAttachment AttachmentResources::descriptorAttachment(DescriptorAttachmentHandle handle) const {
-    return m_descriptorAttachments[handle];
+    return m_descriptorAttachments.at(handle);
 }
 
-DescriptorAttachmentHandle AttachmentResources::addDescriptorAttachment(
+void AttachmentResources::addDescriptorAttachment(
+    DescriptorAttachmentHandle handle,
+    DescriptorSetLayoutHandle descriptorSetLayoutHandle,
     const VkDescriptorSet descriptor,
     const VkDescriptorType type,
     const VkBufferUsageFlagBits usage,
     uint32_t bufferSize
 ) {
     DescriptorAttachment attachment {
+        .descriptorSetLayoutHandle = descriptorSetLayoutHandle,
         .descriptor = descriptor,
         .buffer = new StagedBuffer(m_context, bufferSize, usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
     };
@@ -148,6 +157,7 @@ DescriptorAttachmentHandle AttachmentResources::addDescriptorAttachment(
         .pBufferInfo = &bufferInfo,
     };
     vkUpdateDescriptorSets(m_context->device(), 1, &write, 0, nullptr);
-    m_descriptorAttachments.push_back(attachment);
-    return m_descriptorAttachments.size() - 1;   
+
+    if(m_descriptorAttachments.contains(handle)) throw std::runtime_error("Descriptor attachment handle already present!");
+    m_descriptorAttachments[handle] = attachment;   
 }

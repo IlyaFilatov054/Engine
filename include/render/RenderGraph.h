@@ -1,10 +1,9 @@
 #pragma once
 
 #include "render/AttachmentResources.h"
+#include "render/DescriptorManager.h"
 #include "render/RenderPass.h"
-#include "render/StagedBuffer.h"
 #include "render/VkContext.h"
-#include <array>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -19,20 +18,19 @@ typedef std::function<void(
 
 typedef uint32_t FrameRenderDataHandle;
 
-enum DescriptorStage {
-    Const = 0,
-    Frame = 1,
-    Input
+struct ExternalDescriptor {
+    VkDescriptorSet descriptor;
+    DescriptorSetLayoutHandle layout;
 };
 
 typedef uint32_t RenderPassHandle;
+
 struct RenderGraphNode {
     RenderPassHandle renderPass;
     std::vector<ReadAttachmentHandle> inputAttachments;
     WriteAttachmentHandle outputAttachment;
-    std::vector<VkDescriptorSet> constDescriptors;
+    std::vector<ExternalDescriptor> externalDescriptors;
     std::vector<DescriptorAttachmentHandle> descriptorAttachments;
-    std::array<DescriptorStage, 3> descriptorOrder = {Const, Frame, Input};
     std::vector<VkClearValue> clearValues;
     FrameRenderDataHandle frameRenderData;
 };
@@ -40,6 +38,7 @@ struct RenderGraphNode {
 typedef uint32_t NodeHandle;
 
 struct ImageAttachmentDescription {
+    ImageAttachmentHandle handle;
     std::vector<Image*> externalImages;
     VkFormat format;
     VkImageUsageFlags usage;
@@ -48,23 +47,27 @@ struct ImageAttachmentDescription {
 };
 
 struct WriteAttachmentDescription {
+    WriteAttachmentHandle handle;
     RenderPassHandle renderPass;
     VkExtent2D extent;
     std::vector<ImageAttachmentHandle> imageAttachments;
 };
 
 struct ReadAttachmentDescription {
+    ReadAttachmentHandle handle;
+    DescriptorSetLayoutHandle descriptorSetLayoutHandle;
     std::vector<VkDescriptorSet> perFrameDescriptors;
     std::vector<ImageAttachmentHandle> imageAttachments;
 };
 
 typedef std::function<void*()> DescriptorUpdateSource;
 struct DescriptorAttachmentDescription {
+    DescriptorAttachmentHandle handle;
+    DescriptorSetLayoutHandle descriptorSetLayoutHandle;
     std::vector<VkDescriptorSet> perFrameDescriptors;
     VkDescriptorType type;
     VkBufferUsageFlagBits usage;
     uint32_t bufferSize;
-    DescriptorUpdateSource updateSource;
 };
 
 typedef uint32_t StepHandle;
@@ -74,28 +77,30 @@ public:
     RenderGraph(const VkContext* context);
     ~RenderGraph();
 
-    const RenderPassHandle addRenderPass(
+    void addRenderPass(
+        RenderPassHandle handle,
         const std::vector<VkAttachmentDescription>& attachments,
         const std::vector<VkImageLayout>& attachmentLayouts,
         const VkExtent2D& extent, 
         const std::vector<ShaderDescription>& shaders,
-        const std::vector<VkDescriptorSetLayout> usedLayouts
+        const std::vector<DescriptorSetLayout> usedLayouts
     );
-    const NodeHandle addNode(const RenderGraphNode& node, StepHandle step);
+    void addNode(NodeHandle handle, const RenderGraphNode& node, StepHandle step);
     void execute(const VkCommandBuffer commandBuffer, uint32_t image);
     void addDrawCall(FrameRenderDataHandle frameRenderDataHandle, DrawCall drawCall);
     
-    const ImageAttachmentHandle addImageAttachment(ImageAttachmentDescription& description);
-    const WriteAttachmentHandle addWriteAttachment(WriteAttachmentDescription& description);
-    const ReadAttachmentHandle addReadAttachment(ReadAttachmentDescription& description);
-    const DescriptorAttachmentHandle addDescriptorAttachment(DescriptorAttachmentDescription& description);
+    void addImageAttachment(ImageAttachmentDescription& description);
+    void addWriteAttachment(WriteAttachmentDescription& description);
+    void addReadAttachment(ReadAttachmentDescription& description);
+    void addDescriptorAttachment(DescriptorAttachmentDescription& description);
+    void bindDescriptorAttachmentDataSource(DescriptorAttachmentHandle handle, DescriptorUpdateSource source);
     void createAttachmentResources(uint32_t imageCount);
 private:
     const VkContext* m_context;
     
-    std::vector<RenderPass*> m_renderPasses;
+    std::map<RenderPassHandle, RenderPass*> m_renderPasses;
     
-    std::vector<RenderGraphNode> m_nodes;
+    std::map<NodeHandle, RenderGraphNode> m_nodes;
     std::map<StepHandle, std::vector<NodeHandle>> m_steps;
     std::map<FrameRenderDataHandle, std::vector<DrawCall>> m_renderQueue;
 
@@ -104,6 +109,7 @@ private:
     std::vector<WriteAttachmentDescription> m_writeAttachmentDescriptions;
     std::vector<ReadAttachmentDescription> m_readAttachmentDescriptions;
     std::vector<DescriptorAttachmentDescription> m_descriptorAttachmentDescriptions;
+    std::map<DescriptorAttachmentHandle, DescriptorUpdateSource> m_descriptorAttachmentsUpdateSources;
 
     void executeNode(
         NodeHandle node,

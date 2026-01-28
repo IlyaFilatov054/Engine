@@ -11,13 +11,13 @@ RenderPass::RenderPass(
     const std::vector<VkImageLayout>& attachmentLayouts,
     const VkExtent2D& extent,
     const std::vector<ShaderDescription>& shaders,
-    const std::vector<VkDescriptorSetLayout> usedLayouts) 
+    const std::vector<DescriptorSetLayout> usedLayouts) 
 : m_context(context), m_extent(extent) {
     std::vector<VkAttachmentReference> colorReferences;
     VkAttachmentReference depthReference;
     int depthAttachment = -1;
     for(uint32_t i = 0; i < attachments.size(); i++) {
-        m_outputLayouts.push_back(attachmentLayouts[i]);
+        m_outputLayouts.push_back(attachments[i].finalLayout);
         if(attachments[i].format == VK_FORMAT_D32_SFLOAT) {
             depthAttachment = static_cast<uint32_t>(i);
             depthReference = {
@@ -61,7 +61,13 @@ RenderPass::RenderPass(
     auto res = vkCreateRenderPass(m_context->device(), &renderPassCreateInfo, nullptr, &m_renderPass);
     validateVkResult(res, "vkCreateRenderPass");
 
-    m_pipeline = new Pipeline(m_context, extent, m_renderPass, shaders, usedLayouts);
+    std::vector<VkDescriptorSetLayout> layouts;
+    for(auto l : usedLayouts) {
+        m_descriptorOrder.push_back(l.handle);
+        layouts.push_back(l.layout);
+    }
+
+    m_pipeline = new Pipeline(m_context, extent, m_renderPass, shaders, layouts);
 };
 
 RenderPass::~RenderPass() {
@@ -83,4 +89,8 @@ const VkExtent2D& RenderPass::extent() const {
 
 const std::vector<VkImageLayout>& RenderPass::outputLayouts() const {
     return m_outputLayouts;
+}
+
+const std::vector<DescriptorSetLayoutHandle> RenderPass::descriptorOrder() const {
+    return m_descriptorOrder;
 }
