@@ -246,7 +246,6 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         .readAttachments {
             ReadAttachmentSetup {
                 .handle = 0,
-                .descriptorSetLayout = 3,
                 .descriptors = 4,
                 .imageAttachments = {3}
             },
@@ -254,7 +253,6 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         .descriptorAttachments {
             DescriptorAttachmentSetup {
                 .handle = 0,
-                .descriptorSetLayout = 2,
                 .descriptors = 2,
                 .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                 .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -262,7 +260,6 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
             },
             DescriptorAttachmentSetup {
                 .handle = 1,
-                .descriptorSetLayout = 2,
                 .descriptors = 3,
                 .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                 .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -270,7 +267,6 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
             },
             DescriptorAttachmentSetup {
                 .handle = 2,
-                .descriptorSetLayout = 0,
                 .descriptors = 0,
                 .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
@@ -282,12 +278,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
                 .handle = 0,
                 .renderPass = 0,
                 .outputAttachment = 1,
-                .externalDescriptors {
-                    ExternalDescriptorSetup {
-                        .descriptor = 1,
-                        .layout = 1
-                    }
-                },
+                .externalDescriptors {1},
                 .descriptorAttachments = {2, 0},
                 .clearValues = {
                     {.color = {1.0f, 0.0f, 0.0f, 1.0f}},
@@ -385,7 +376,6 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     for(auto readAttachment : renderSetup.readAttachments) {
         ReadAttachmentDescription readAttachmentDescription {
             .handle = readAttachment.handle,
-            .descriptorSetLayoutHandle = readAttachment.descriptorSetLayout,
             .perFrameDescriptors = m_descriptorManager->sets(readAttachment.descriptors),
             .imageAttachments = readAttachment.imageAttachments
         };
@@ -394,7 +384,6 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     for(auto descriptorAttachment : renderSetup.descriptorAttachments) {
         DescriptorAttachmentDescription descriptorAttachmentDescription {
             .handle = descriptorAttachment.handle,
-            .descriptorSetLayoutHandle = descriptorAttachment.descriptorSetLayout,
             .perFrameDescriptors = m_descriptorManager->sets(descriptorAttachment.descriptors),
             .type = descriptorAttachment.type,
             .usage = descriptorAttachment.usage,
@@ -404,13 +393,9 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     }
     m_renderGraph->createAttachmentResources(m_frameManager->imageCount());
     for(auto nodeSetup : renderSetup.renderGraphNodes) {
-        std::vector<ExternalDescriptor> externalDescriptors;
+        std::vector<DescriptorSet> externalDescriptors;
         for(auto d : nodeSetup.externalDescriptors){
-            ExternalDescriptor externalDescriptor {
-                .descriptor = m_descriptorManager->sets(d.descriptor)[0],
-                .layout = d.layout
-            };
-            externalDescriptors.push_back(externalDescriptor);
+            externalDescriptors.push_back(m_descriptorManager->sets(d)[0]);
         }
         RenderGraphNode node {
             .renderPass = nodeSetup.renderPass,
@@ -424,7 +409,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         m_renderGraph->addNode(nodeSetup.handle, node, nodeSetup.step);
     }
     
-    m_resourceManager = new ResourceManager(m_context, m_descriptorManager->sets(1).front());
+    m_resourceManager = new ResourceManager(m_context, m_descriptorManager->sets(1).front().descriptor);
     m_resourceManager->addMesh(m_vertices, m_indices);
     m_resourceManager->addTexture("/home/ilya/Pictures/Wallpapers/landscapes/Rainnight.jpg");
     

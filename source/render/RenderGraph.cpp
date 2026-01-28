@@ -110,7 +110,6 @@ void RenderGraph::createAttachmentResources(uint32_t imageCount) {
             auto& readDescription = m_readAttachmentDescriptions[j];
             resources->addReadAttachment(
                 readDescription.handle,
-                readDescription.descriptorSetLayoutHandle,
                 readDescription.perFrameDescriptors[i],
                 readDescription.imageAttachments
             );
@@ -119,7 +118,6 @@ void RenderGraph::createAttachmentResources(uint32_t imageCount) {
             auto& descriptorDescription = m_descriptorAttachmentDescriptions[j];
             resources->addDescriptorAttachment(
                 descriptorDescription.handle,
-                descriptorDescription.descriptorSetLayoutHandle,
                 descriptorDescription.perFrameDescriptors[i],
                 descriptorDescription.type,
                 descriptorDescription.usage,
@@ -167,10 +165,10 @@ void RenderGraph::executeNode(NodeHandle nodeHandle, const VkCommandBuffer comma
         unorderedDescriptors[d.layout] = d.descriptor;
     }
     for(auto d : node.descriptorAttachments) {
-        unorderedDescriptors[attachments->descriptorAttachment(d).descriptorSetLayoutHandle] = attachments->descriptorAttachment(d).descriptor;
+        unorderedDescriptors[attachments->descriptorAttachment(d).descriptor.layout] = attachments->descriptorAttachment(d).descriptor.descriptor;
     }
     for(auto d : node.inputAttachments) {
-        unorderedDescriptors[attachments->readAttachment(d).descriptorSetLayoutHandle] = attachments->readAttachment(d).descriptor;
+        unorderedDescriptors[attachments->readAttachment(d).descriptor.layout] = attachments->readAttachment(d).descriptor.descriptor;
     }
     std::vector<VkDescriptorSet> descriptors;
     for(auto d : renderPass->descriptorOrder()) {

@@ -18,8 +18,7 @@ struct ImageAttachment {
 
 typedef uint32_t ReadAttachmentHandle;
 struct ReadAttachment {
-    DescriptorSetLayoutHandle descriptorSetLayoutHandle;
-    VkDescriptorSet descriptor;
+    DescriptorSet descriptor;
     std::vector<uint32_t> images;
 };
 
@@ -31,8 +30,7 @@ struct WriteAttachment {
 
 typedef uint32_t DescriptorAttachmentHandle;
 struct DescriptorAttachment {
-    DescriptorSetLayoutHandle descriptorSetLayoutHandle;
-    VkDescriptorSet descriptor;
+    DescriptorSet descriptor;
     StagedBuffer* buffer;
 };
 
@@ -62,24 +60,17 @@ public:
     ReadAttachment readAttachment(ReadAttachmentHandle handle) const;
     void addReadAttachment(
         ReadAttachmentHandle handle,
-        DescriptorSetLayoutHandle descriptorSetLayoutHandle,
-        VkDescriptorSet descriptor,
+        DescriptorSet descriptor,
         const std::vector<ImageAttachmentHandle>& imageAttachments
     );
 
     DescriptorAttachment descriptorAttachment(DescriptorAttachmentHandle handle) const;
     void addDescriptorAttachment(
         DescriptorAttachmentHandle handle,
-        DescriptorSetLayoutHandle descriptorSetLayoutHandle,
-        const VkDescriptorSet descriptor,
+        const DescriptorSet descriptor,
         const VkDescriptorType type,
         const VkBufferUsageFlagBits usage,
         uint32_t bufferSize
-    );
-    void addDescriptorAttachment(
-        DescriptorAttachmentHandle handle,
-        const VkDescriptorSet descriptor,
-        const VkDescriptorType type
     );
 private:
     const VkContext* m_context;

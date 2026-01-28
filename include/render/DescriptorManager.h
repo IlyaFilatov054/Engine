@@ -10,6 +10,11 @@
 typedef uint32_t DescriptorSetLayoutHandle;
 typedef uint32_t DescriptorSetHandle;
 
+struct DescriptorSet {
+    DescriptorSetLayoutHandle layout;
+    VkDescriptorSet descriptor;
+};
+
 class DescriptorManager {
 public:
     DescriptorManager(const VkContext* context);
@@ -19,12 +24,12 @@ public:
     VkDescriptorSetLayout layout(DescriptorSetLayoutHandle handle) const;
     
     void allocateSets(DescriptorSetHandle descriptorHandle, DescriptorSetLayoutHandle layoutHandle, uint32_t count);
-    const std::vector<VkDescriptorSet>& sets(DescriptorSetHandle descriptorHandle) const;
+    const std::vector<DescriptorSet>& sets(DescriptorSetHandle descriptorHandle) const;
 
 private:
     const VkContext* m_context = nullptr;
 
     VkDescriptorPool m_pool = VK_NULL_HANDLE;
     std::map<DescriptorSetLayoutHandle, VkDescriptorSetLayout> m_layouts;
-    std::map<DescriptorSetHandle, std::vector<VkDescriptorSet>> m_sets;
+    std::map<DescriptorSetHandle, std::vector<DescriptorSet>> m_sets;
 };

@@ -65,10 +65,17 @@ void DescriptorManager::allocateSets(DescriptorSetHandle descriptorHandle, Descr
     };
     vkAllocateDescriptorSets(m_context->device(), &ssboSetAllocInfo, sets.data());
     if(m_sets.contains(descriptorHandle)) throw std::runtime_error("Current descriptor set handle already present!");
-    m_sets[descriptorHandle] = sets;
+    std::vector<DescriptorSet> descriptorSets;
+    for(auto s : sets) {
+        descriptorSets.push_back(DescriptorSet {
+            .layout = layoutHandle,
+            .descriptor = s,
+        });
+    }
+    m_sets[descriptorHandle] = descriptorSets;
 }
 
-const std::vector<VkDescriptorSet>& DescriptorManager::sets(DescriptorSetHandle descriptorHandle) const {
+const std::vector<DescriptorSet>& DescriptorManager::sets(DescriptorSetHandle descriptorHandle) const {
     if(!m_sets.contains(descriptorHandle)) throw std::runtime_error("Descriptor set not found!");
     return m_sets.at(descriptorHandle);
 }

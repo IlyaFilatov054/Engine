@@ -94,8 +94,7 @@ ReadAttachment AttachmentResources::readAttachment(ReadAttachmentHandle handle) 
 
 void AttachmentResources::addReadAttachment(
     ReadAttachmentHandle handle,
-    DescriptorSetLayoutHandle descriptorSetLayoutHandle,
-    VkDescriptorSet descriptor,
+    DescriptorSet descriptor,
     const std::vector<uint32_t>& attachments
 ) {
     for(uint32_t i = 0; i < attachments.size(); i++) {
@@ -107,7 +106,7 @@ void AttachmentResources::addReadAttachment(
         };
         VkWriteDescriptorSet write {
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = descriptor,
+            .dstSet = descriptor.descriptor,
             .dstBinding = i,
             .dstArrayElement = 0,
             .descriptorCount = 1,
@@ -117,7 +116,6 @@ void AttachmentResources::addReadAttachment(
         vkUpdateDescriptorSets(m_context->device(), 1, &write, 0, nullptr);
     }
     ReadAttachment attachment {
-        .descriptorSetLayoutHandle = descriptorSetLayoutHandle,
         .descriptor = descriptor,
         .images = attachments
     };
@@ -132,14 +130,12 @@ DescriptorAttachment AttachmentResources::descriptorAttachment(DescriptorAttachm
 
 void AttachmentResources::addDescriptorAttachment(
     DescriptorAttachmentHandle handle,
-    DescriptorSetLayoutHandle descriptorSetLayoutHandle,
-    const VkDescriptorSet descriptor,
+    const DescriptorSet descriptor,
     const VkDescriptorType type,
     const VkBufferUsageFlagBits usage,
     uint32_t bufferSize
 ) {
     DescriptorAttachment attachment {
-        .descriptorSetLayoutHandle = descriptorSetLayoutHandle,
         .descriptor = descriptor,
         .buffer = new StagedBuffer(m_context, bufferSize, usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
     };
@@ -150,7 +146,7 @@ void AttachmentResources::addDescriptorAttachment(
     };
     VkWriteDescriptorSet write {
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstSet = descriptor,
+        .dstSet = descriptor.descriptor,
         .dstBinding = 0,
         .descriptorCount = 1,
         .descriptorType = type,

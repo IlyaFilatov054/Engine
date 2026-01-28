@@ -18,18 +18,13 @@ typedef std::function<void(
 
 typedef uint32_t FrameRenderDataHandle;
 
-struct ExternalDescriptor {
-    VkDescriptorSet descriptor;
-    DescriptorSetLayoutHandle layout;
-};
-
 typedef uint32_t RenderPassHandle;
 
 struct RenderGraphNode {
     RenderPassHandle renderPass;
     std::vector<ReadAttachmentHandle> inputAttachments;
     WriteAttachmentHandle outputAttachment;
-    std::vector<ExternalDescriptor> externalDescriptors;
+    std::vector<DescriptorSet> externalDescriptors;
     std::vector<DescriptorAttachmentHandle> descriptorAttachments;
     std::vector<VkClearValue> clearValues;
     FrameRenderDataHandle frameRenderData;
@@ -55,16 +50,14 @@ struct WriteAttachmentDescription {
 
 struct ReadAttachmentDescription {
     ReadAttachmentHandle handle;
-    DescriptorSetLayoutHandle descriptorSetLayoutHandle;
-    std::vector<VkDescriptorSet> perFrameDescriptors;
+    std::vector<DescriptorSet> perFrameDescriptors;
     std::vector<ImageAttachmentHandle> imageAttachments;
 };
 
 typedef std::function<void*()> DescriptorUpdateSource;
 struct DescriptorAttachmentDescription {
     DescriptorAttachmentHandle handle;
-    DescriptorSetLayoutHandle descriptorSetLayoutHandle;
-    std::vector<VkDescriptorSet> perFrameDescriptors;
+    std::vector<DescriptorSet> perFrameDescriptors;
     VkDescriptorType type;
     VkBufferUsageFlagBits usage;
     uint32_t bufferSize;
