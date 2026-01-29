@@ -3,13 +3,9 @@
 #include "render/DescriptorManager.h"
 #include "render/Pipeline.h"
 #include "render/VkContext.h"
+#include <utility>
 #include <vector>
 #include <vulkan/vulkan_core.h> 
-
-struct DescriptorSetLayout {
-    DescriptorSetLayoutHandle handle;
-    VkDescriptorSetLayout layout;
-};
 
 class RenderPass {
 public:
@@ -19,7 +15,7 @@ public:
         const std::vector<VkImageLayout>& attachmentLayouts,
         const VkExtent2D& extent, 
         const std::vector<ShaderDescription>& shaders,
-        const std::vector<DescriptorSetLayout> usedLayouts);
+        const std::vector<std::pair<DescriptorSetLayoutHandle, VkDescriptorSetLayout>> usedLayouts);
     ~RenderPass();
 
     const VkRenderPass& renderPass() const;

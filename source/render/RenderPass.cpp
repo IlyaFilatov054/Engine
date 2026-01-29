@@ -11,7 +11,7 @@ RenderPass::RenderPass(
     const std::vector<VkImageLayout>& attachmentLayouts,
     const VkExtent2D& extent,
     const std::vector<ShaderDescription>& shaders,
-    const std::vector<DescriptorSetLayout> usedLayouts) 
+    const std::vector<std::pair<DescriptorSetLayoutHandle, VkDescriptorSetLayout>> usedLayouts) 
 : m_context(context), m_extent(extent) {
     std::vector<VkAttachmentReference> colorReferences;
     VkAttachmentReference depthReference;
@@ -63,8 +63,8 @@ RenderPass::RenderPass(
 
     std::vector<VkDescriptorSetLayout> layouts;
     for(auto l : usedLayouts) {
-        m_descriptorOrder.push_back(l.handle);
-        layouts.push_back(l.layout);
+        m_descriptorOrder.push_back(l.first);
+        layouts.push_back(l.second);
     }
 
     m_pipeline = new Pipeline(m_context, extent, m_renderPass, shaders, layouts);

@@ -26,7 +26,7 @@ void RenderGraph::addRenderPass(
     const std::vector<VkImageLayout>& attachmentLayouts,
     const VkExtent2D& extent, 
     const std::vector<ShaderDescription>& shaders,
-    const std::vector<DescriptorSetLayout> usedLayouts
+    const std::vector<std::pair<DescriptorSetLayoutHandle, VkDescriptorSetLayout>> usedLayouts
 ) {
     if(m_renderPasses.contains(handle)) throw std::runtime_error("Render pass handle already present!");
     m_renderPasses[handle] = new RenderPass(m_context, attachments, attachmentLayouts, extent, shaders, usedLayouts);
@@ -110,7 +110,7 @@ void RenderGraph::createAttachmentResources(uint32_t imageCount) {
             auto& readDescription = m_readAttachmentDescriptions[j];
             resources->addReadAttachment(
                 readDescription.handle,
-                readDescription.perFrameDescriptors[i],
+                readDescription.perFrameDescriptorSets[i],
                 readDescription.imageAttachments
             );
         }
@@ -118,7 +118,7 @@ void RenderGraph::createAttachmentResources(uint32_t imageCount) {
             auto& descriptorDescription = m_descriptorAttachmentDescriptions[j];
             resources->addDescriptorAttachment(
                 descriptorDescription.handle,
-                descriptorDescription.perFrameDescriptors[i],
+                descriptorDescription.perFrameDescriptorSets[i],
                 descriptorDescription.type,
                 descriptorDescription.usage,
                 descriptorDescription.bufferSize

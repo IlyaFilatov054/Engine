@@ -246,28 +246,28 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         .readAttachments {
             ReadAttachmentSetup {
                 .handle = 0,
-                .descriptors = 4,
+                .descriptorSet = 4,
                 .imageAttachments = {3}
             },
         },
         .descriptorAttachments {
             DescriptorAttachmentSetup {
                 .handle = 0,
-                .descriptors = 2,
+                .descriptorSet = 2,
                 .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                 .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 .bufferSize = sizeof(glm::mat4) * 2
             },
             DescriptorAttachmentSetup {
                 .handle = 1,
-                .descriptors = 3,
+                .descriptorSet = 3,
                 .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                 .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 .bufferSize = sizeof(glm::mat4) * 2
             },
             DescriptorAttachmentSetup {
                 .handle = 2,
-                .descriptors = 0,
+                .descriptorSet = 0,
                 .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                 .bufferSize = 1024
@@ -278,7 +278,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
                 .handle = 0,
                 .renderPass = 0,
                 .outputAttachment = 1,
-                .externalDescriptors {1},
+                .externalDescriptorSets = {1},
                 .descriptorAttachments = {2, 0},
                 .clearValues = {
                     {.color = {1.0f, 0.0f, 0.0f, 1.0f}},
@@ -317,12 +317,11 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         );
     }
     for(auto renderPass : renderSetup.renderPasses) {
-        std::vector<DescriptorSetLayout> descriptorSetLayouts;
+        std::vector<std::pair<DescriptorSetLayoutHandle, VkDescriptorSetLayout>> descriptorSetLayouts;
         for(auto layout : renderPass.descriptorSetLayouts) {
-            DescriptorSetLayout descriptorSetLayout {
-                .handle = layout,
-                .layout = m_descriptorManager->layout(layout)
-            };
+            std::pair<DescriptorSetLayoutHandle, VkDescriptorSetLayout> descriptorSetLayout;
+            descriptorSetLayout.first = layout,
+            descriptorSetLayout.second = m_descriptorManager->layout(layout);
             descriptorSetLayouts.push_back(descriptorSetLayout);
         }
         
@@ -376,7 +375,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     for(auto readAttachment : renderSetup.readAttachments) {
         ReadAttachmentDescription readAttachmentDescription {
             .handle = readAttachment.handle,
-            .perFrameDescriptors = m_descriptorManager->sets(readAttachment.descriptors),
+            .perFrameDescriptorSets = m_descriptorManager->sets(readAttachment.descriptorSet),
             .imageAttachments = readAttachment.imageAttachments
         };
         m_renderGraph->addReadAttachment(readAttachmentDescription);
@@ -384,7 +383,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     for(auto descriptorAttachment : renderSetup.descriptorAttachments) {
         DescriptorAttachmentDescription descriptorAttachmentDescription {
             .handle = descriptorAttachment.handle,
-            .perFrameDescriptors = m_descriptorManager->sets(descriptorAttachment.descriptors),
+            .perFrameDescriptorSets = m_descriptorManager->sets(descriptorAttachment.descriptorSet),
             .type = descriptorAttachment.type,
             .usage = descriptorAttachment.usage,
             .bufferSize = descriptorAttachment.bufferSize
@@ -394,7 +393,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
     m_renderGraph->createAttachmentResources(m_frameManager->imageCount());
     for(auto nodeSetup : renderSetup.renderGraphNodes) {
         std::vector<DescriptorSet> externalDescriptors;
-        for(auto d : nodeSetup.externalDescriptors){
+        for(auto d : nodeSetup.externalDescriptorSets){
             externalDescriptors.push_back(m_descriptorManager->sets(d)[0]);
         }
         RenderGraphNode node {

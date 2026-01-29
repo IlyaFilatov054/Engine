@@ -60,13 +60,13 @@ struct WriteAttachmentSetup {
 
 struct ReadAttachmentSetup {
     ReadAttachmentHandle handle;
-    DescriptorSetHandle descriptors;
+    DescriptorSetHandle descriptorSet;
     std::vector<ImageAttachmentHandle> imageAttachments;
 };
 
 struct DescriptorAttachmentSetup {
     DescriptorAttachmentHandle handle;
-    DescriptorSetHandle descriptors;
+    DescriptorSetHandle descriptorSet;
     VkDescriptorType type;
     VkBufferUsageFlagBits usage;
     uint32_t bufferSize;
@@ -77,7 +77,7 @@ struct RenderGraphNodeSetup {
     RenderPassHandle renderPass;
     std::vector<ReadAttachmentHandle> inputAttachments;
     WriteAttachmentHandle outputAttachment;
-    std::vector<DescriptorSetHandle> externalDescriptors;
+    std::vector<DescriptorSetHandle> externalDescriptorSets;
     std::vector<DescriptorAttachmentHandle> descriptorAttachments;
     std::vector<VkClearValue> clearValues;
     FrameRenderDataHandle frameRenderData;

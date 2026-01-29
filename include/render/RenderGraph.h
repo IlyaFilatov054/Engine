@@ -50,14 +50,14 @@ struct WriteAttachmentDescription {
 
 struct ReadAttachmentDescription {
     ReadAttachmentHandle handle;
-    std::vector<DescriptorSet> perFrameDescriptors;
+    std::vector<DescriptorSet> perFrameDescriptorSets;
     std::vector<ImageAttachmentHandle> imageAttachments;
 };
 
 typedef std::function<void*()> DescriptorUpdateSource;
 struct DescriptorAttachmentDescription {
     DescriptorAttachmentHandle handle;
-    std::vector<DescriptorSet> perFrameDescriptors;
+    std::vector<DescriptorSet> perFrameDescriptorSets;
     VkDescriptorType type;
     VkBufferUsageFlagBits usage;
     uint32_t bufferSize;
@@ -76,7 +76,7 @@ public:
         const std::vector<VkImageLayout>& attachmentLayouts,
         const VkExtent2D& extent, 
         const std::vector<ShaderDescription>& shaders,
-        const std::vector<DescriptorSetLayout> usedLayouts
+        const std::vector<std::pair<DescriptorSetLayoutHandle, VkDescriptorSetLayout>> usedLayouts
     );
     void addNode(NodeHandle handle, const RenderGraphNode& node, StepHandle step);
     void execute(const VkCommandBuffer commandBuffer, uint32_t image);
