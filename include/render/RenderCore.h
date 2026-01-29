@@ -2,11 +2,8 @@
 #include "render/Camera.h"
 #include "render/DescriptorManager.h"
 #include "render/FrameManager.h"
-#include "render/FrameResources.h"
-#include "render/ImageResources.h"
 #include "render/RenderGraph.h"
 #include "render/RenderObject.h"
-#include "render/RenderPass.h"
 #include "render/ResourceManager.h"
 #include "render/ShaderManager.h"
 #include "render/VkContext.h"
@@ -14,7 +11,6 @@
 #include <cstdint>
 #include <vector>
 #include <vulkan/vulkan_core.h>
-#include "render/MeshBuffer.h"
 #include "render/Camera.h"
 #include "render/Vertex.h"
 
