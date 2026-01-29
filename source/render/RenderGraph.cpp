@@ -22,14 +22,10 @@ RenderGraph::~RenderGraph() {
 
 void RenderGraph::addRenderPass(
     RenderPassHandle handle,
-    const std::vector<VkAttachmentDescription>& attachments,
-    const std::vector<VkImageLayout>& attachmentLayouts,
-    const VkExtent2D& extent, 
-    const std::vector<ShaderDescription>& shaders,
-    const std::vector<std::pair<DescriptorSetLayoutHandle, VkDescriptorSetLayout>> usedLayouts
+    const RenderPassDescription description
 ) {
     if(m_renderPasses.contains(handle)) throw std::runtime_error("Render pass handle already present!");
-    m_renderPasses[handle] = new RenderPass(m_context, attachments, attachmentLayouts, extent, shaders, usedLayouts);
+    m_renderPasses[handle] = new RenderPass(m_context, description);
 }
 
 void RenderGraph::addNode(NodeHandle handle, const RenderGraphNode& node, uint32_t step) {

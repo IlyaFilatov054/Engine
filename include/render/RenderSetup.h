@@ -25,18 +25,21 @@ struct ShaderDescriptionSetup {
 };
 
 struct RenderPassAttachmentSetup {
-    VkAttachmentDescription description;
-    bool swapchainFormat;
+    VkFormat format;
+    bool swapchainFormat = false;
+    VkImageLayout initialLayout;
+    VkImageLayout finalLayout;
     VkImageLayout referenceLayout;
+    bool depth = false;
 };
 
 struct RenderPassSetup {
     RenderPassHandle hadle;
+    VkExtent2D extent;
+    bool swapchainExtent = false;
     std::vector<DescriptorSetLayoutHandle> descriptorSetLayouts;
     std::vector<ShaderDescriptionSetup> shaders;
     std::vector<RenderPassAttachmentSetup> attachments;
-    VkExtent2D extent;
-    bool swapchainExtent = false;
 };
 
 struct ImageAttachmentSetup {

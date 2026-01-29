@@ -72,11 +72,7 @@ public:
 
     void addRenderPass(
         RenderPassHandle handle,
-        const std::vector<VkAttachmentDescription>& attachments,
-        const std::vector<VkImageLayout>& attachmentLayouts,
-        const VkExtent2D& extent, 
-        const std::vector<ShaderDescription>& shaders,
-        const std::vector<std::pair<DescriptorSetLayoutHandle, VkDescriptorSetLayout>> usedLayouts
+        const RenderPassDescription description
     );
     void addNode(NodeHandle handle, const RenderGraphNode& node, StepHandle step);
     void execute(const VkCommandBuffer commandBuffer, uint32_t image);

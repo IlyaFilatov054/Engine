@@ -115,6 +115,7 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         .renderPasses {
             RenderPassSetup {
                 .hadle = 0,
+                .swapchainExtent = true,
                 .descriptorSetLayouts = {1, 0, 2},
                 .shaders = {
                     ShaderDescriptionSetup {
@@ -128,37 +129,23 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
                 },
                 .attachments {
                     RenderPassAttachmentSetup {
-                        .description = {
-                            .samples = VK_SAMPLE_COUNT_1_BIT,
-                            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                            .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL                
-                        },
                         .swapchainFormat = true,
+                        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                        .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                         .referenceLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
                     },
                     RenderPassAttachmentSetup {
-                        .description = {
-                            .format = VK_FORMAT_D32_SFLOAT,
-                            .samples = VK_SAMPLE_COUNT_1_BIT,
-                            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                            .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                            .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL                
-                        },
-                        .swapchainFormat = false,
-                        .referenceLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                        .format =  VK_FORMAT_D32_SFLOAT,
+                        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                        .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                        .referenceLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                        .depth = true,
                     },
                 },
-                .swapchainExtent = true
             },
             RenderPassSetup {
                 .hadle = 1,
+                .swapchainExtent = true,
                 .descriptorSetLayouts = {3, 0, 2},
                 .shaders = {
                     ShaderDescriptionSetup {
@@ -172,34 +159,19 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
                 },
                 .attachments {
                     RenderPassAttachmentSetup {
-                        .description = {
-                            .samples = VK_SAMPLE_COUNT_1_BIT,
-                            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR                
-                        },
                         .swapchainFormat = true,
+                        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                         .referenceLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
                     },
                     RenderPassAttachmentSetup {
-                        .description = {
-                            .format = VK_FORMAT_D32_SFLOAT,
-                            .samples = VK_SAMPLE_COUNT_1_BIT,
-                            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                            .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                            .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL                
-                        },
-                        .swapchainFormat = false,
-                        .referenceLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                        .format = VK_FORMAT_D32_SFLOAT,
+                        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                        .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                        .referenceLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                        .depth = true
                     },
                 },
-                .swapchainExtent = true
             },
         },
         .imageAttachments {
@@ -317,12 +289,13 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         );
     }
     for(auto renderPass : renderSetup.renderPasses) {
-        std::vector<std::pair<DescriptorSetLayoutHandle, VkDescriptorSetLayout>> descriptorSetLayouts;
+        std::vector<DescriptorSetLayoutReference> descriptorSetLayoutReferences;
         for(auto layout : renderPass.descriptorSetLayouts) {
-            std::pair<DescriptorSetLayoutHandle, VkDescriptorSetLayout> descriptorSetLayout;
-            descriptorSetLayout.first = layout,
-            descriptorSetLayout.second = m_descriptorManager->layout(layout);
-            descriptorSetLayouts.push_back(descriptorSetLayout);
+            DescriptorSetLayoutReference descriptorSetLayoutReference {
+                .handle = layout,
+                .layout = m_descriptorManager->layout(layout)
+            };
+            descriptorSetLayoutReferences.push_back(descriptorSetLayoutReference);
         }
         
         std::vector<ShaderDescription> shaderDescriptions;
@@ -334,22 +307,27 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
             shaderDescriptions.push_back(shaderDescription);
         }
 
-        std::vector<VkAttachmentDescription> attachmentDescriptions;
-        std::vector<VkImageLayout> attachmentReferenceLayouts;
+        std::vector<RenderPassAttachmentDescription> attachmentDescriptions;
         for(auto attachment : renderPass.attachments) {
-            VkAttachmentDescription attachmentDescription = attachment.description;
-            if(attachment.swapchainFormat) attachmentDescription.format = m_swapchain->format().format;
+            RenderPassAttachmentDescription attachmentDescription {
+                .format = attachment.swapchainFormat ? m_swapchain->format().format : attachment.format,
+                .initialLayout = attachment.initialLayout,
+                .finalLayout = attachment.finalLayout,
+                .referenceLayout = attachment.referenceLayout,
+                .depth = attachment.depth
+            };
             attachmentDescriptions.push_back(attachmentDescription);
-            attachmentReferenceLayouts.push_back(attachment.referenceLayout);
         }
 
+        RenderPassDescription renderPassDescription {
+            .extent = renderPass.swapchainExtent ? m_swapchain->extent() : renderPass.extent,
+            .attachments = attachmentDescriptions,
+            .shaders = shaderDescriptions,
+            .descriptorSetLayouts = descriptorSetLayoutReferences
+        };
         m_renderGraph->addRenderPass(
             renderPass.hadle,
-            attachmentDescriptions,
-            attachmentReferenceLayouts,
-            renderPass.swapchainExtent ? m_swapchain->extent() : renderPass.extent,
-            shaderDescriptions,
-            descriptorSetLayouts
+            renderPassDescription
         );
     }
     for(auto imageAttachment : renderSetup.imageAttachments) {

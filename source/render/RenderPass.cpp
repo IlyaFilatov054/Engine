@@ -7,28 +7,25 @@
 
 RenderPass::RenderPass(
     const VkContext* context,
-    const std::vector<VkAttachmentDescription>& attachments,
-    const std::vector<VkImageLayout>& attachmentLayouts,
-    const VkExtent2D& extent,
-    const std::vector<ShaderDescription>& shaders,
-    const std::vector<std::pair<DescriptorSetLayoutHandle, VkDescriptorSetLayout>> usedLayouts) 
-: m_context(context), m_extent(extent) {
+    const RenderPassDescription description
+) 
+: m_context(context), m_extent(description.extent) {
     std::vector<VkAttachmentReference> colorReferences;
     VkAttachmentReference depthReference;
     int depthAttachment = -1;
-    for(uint32_t i = 0; i < attachments.size(); i++) {
-        m_outputLayouts.push_back(attachments[i].finalLayout);
-        if(attachments[i].format == VK_FORMAT_D32_SFLOAT) {
+    for(uint32_t i = 0; i < description.attachments.size(); i++) {
+        m_outputLayouts.push_back(description.attachments[i].finalLayout);
+        if(description.attachments[i].depth) {
             depthAttachment = static_cast<uint32_t>(i);
             depthReference = {
                 .attachment = i,
-                .layout = attachmentLayouts[i]
+                .layout = description.attachments[i].referenceLayout
             };
             continue;
         }
         colorReferences.push_back({
             .attachment = i,
-            .layout = attachmentLayouts[i]
+            .layout = description.attachments[i].referenceLayout
         });
     }
 
@@ -48,10 +45,25 @@ RenderPass::RenderPass(
         .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
     };
 
+    std::vector<VkAttachmentDescription> attachmentDescriptions;
+    for(auto attachment : description.attachments) {
+        VkAttachmentDescription attachmentDescription {
+            .format = attachment.format,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout = attachment.initialLayout,
+            .finalLayout = attachment.finalLayout
+        };
+        attachmentDescriptions.push_back(attachmentDescription);
+    }
+
     VkRenderPassCreateInfo renderPassCreateInfo {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        .attachmentCount = static_cast<uint32_t>(attachments.size()),
-        .pAttachments = attachments.data(),
+        .attachmentCount = static_cast<uint32_t>(attachmentDescriptions.size()),
+        .pAttachments = attachmentDescriptions.data(),
         .subpassCount = 1,
         .pSubpasses = &subpassDescription,
         .dependencyCount = 1,
@@ -62,12 +74,12 @@ RenderPass::RenderPass(
     validateVkResult(res, "vkCreateRenderPass");
 
     std::vector<VkDescriptorSetLayout> layouts;
-    for(auto l : usedLayouts) {
-        m_descriptorOrder.push_back(l.first);
-        layouts.push_back(l.second);
+    for(auto l : description.descriptorSetLayouts) {
+        m_descriptorOrder.push_back(l.handle);
+        layouts.push_back(l.layout);
     }
 
-    m_pipeline = new Pipeline(m_context, extent, m_renderPass, shaders, layouts);
+    m_pipeline = new Pipeline(m_context, description.extent, m_renderPass, description.shaders, layouts);
 };
 
 RenderPass::~RenderPass() {
