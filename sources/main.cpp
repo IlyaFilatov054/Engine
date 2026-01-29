@@ -2,7 +2,6 @@
 #include "render/VkRenderer.h"
 #include <GLFW/glfw3.h>
 #include <chrono>
-#include <ratio>
 #include <string>
 
 int main() {

@@ -1,5 +1,4 @@
 #include "render/ImageResources.h"
-#include "render/Image.h"
 #include "render/VkUtils.h"
 #include <vulkan/vulkan_core.h>
 

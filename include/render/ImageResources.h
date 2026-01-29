@@ -1,9 +1,6 @@
 #pragma once
 
-#include "render/Image.h"
 #include "render/VkContext.h"
-#include <cstdint>
-#include <vector>
 #include <vulkan/vulkan_core.h>
 
 class ImageResources {

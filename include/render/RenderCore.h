@@ -12,7 +12,6 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 #include "render/Camera.h"
-#include "render/Vertex.h"
 
 class RenderCore {
 public:
