@@ -10,6 +10,7 @@
 #include "render/AttachmentResources.h"
 #include "render/DescriptorManager.h"
 #include "render/FrameManager.h"
+#include "render/ModelLoader.h"
 #include "render/Pipeline.h"
 #include "render/RenderGraph.h"
 #include "render/RenderPass.h"
@@ -386,8 +387,10 @@ RenderCore::RenderCore(const VkContext* context, const Swapchain* swapchain) {
         m_renderGraph->addNode(nodeSetup.handle, node, nodeSetup.step);
     }
     
+    ModelLoader modelLoader;
+    auto cube = modelLoader.getCube();
     m_resourceManager = new ResourceManager(m_context, m_descriptorManager->sets(1).front().descriptor);
-    m_resourceManager->addMesh(m_vertices, m_indices);
+    m_resourceManager->addMesh(cube.vertices, cube.indices);
     m_resourceManager->addTexture("/home/ilya/Pictures/Wallpapers/landscapes/Rainnight.jpg");
     
     std::random_device rd;
